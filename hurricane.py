@@ -13,11 +13,11 @@ driving_times = collections.defaultdict(dict)
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
 num_ppl_per_group = 30000 # max num of ppl traveling together
-min_resource_per_group = 1 # min resources each person needs each day
-max_resource_per_group = 3 # max resources a group would take
+min_resource_per_group = 1 # min resources each group needs each time step
+max_resource_per_group = 3 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
-max_resource_per_truck = 30 # max resources able to fit in a truck to transport from one place to the next
+max_resource_per_truck = 240 # max resources able to fit in a truck to transport from one place to the next
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
 fl_min_lat = 24.3959
@@ -90,7 +90,7 @@ def generate_resource_data():
     total_trucks = 0
     for city, data in cities.items():
         pop = data['num_ppl']
-        ideal_resources = (pop/num_ppl_per_group) * (min_resource_per_group + 1) * avg_hurricane_length # everyone is able to have 1 more than min resource for whole hurricane
+        ideal_resources = (pop/num_ppl_per_group) * (max_resource_per_group) * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
         num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 0.75)) # num trucks random between 75% and 125% of ideal
