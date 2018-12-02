@@ -1,54 +1,54 @@
-jacksonville,miami,5
-jacksonville,tampa,3
-jacksonville,orlando,2
-jacksonville,st. petersburg,3.5
-jacksonville,tallahassee,2.5
-jacksonville,port st.lucie,3.5
-jacksonville,cape coral,5
-jacksonville,fort lauderdale,4.5
-miami,tampa,4
-miami,orlando,3.5
-miami,st. petersburg,4
-miami,tallahassee,7
-miami,port st.lucie,2
-miami,cape coral,2.5
-miami,fort lauderdale,0.5
-tampa,orlando,1.5
-tampa,st. petersburg,0.5
-tampa,tallahassee,4
-tampa,port st.lucie,2.5
-tampa,cape coral,2
-tampa,fort lauderdale,3.5
-orlando,st. petersburg,1.5
-orlando,tallahassee,4
-orlando,port st.lucie,2
-orlando,cape coral,3
-orlando,fort lauderdale,3
-st. petersburg,tallahassee,4
-st. petersburg,port st.lucie,3
-st. petersburg,cape coral,2
-st. petersburg,fort lauderdale,3.5
-tallahassee,port st.lucie,5
-tallahassee,cape coral,6
-tallahassee,fort lauderdale,6.5
-port st.lucie,cape coral,2.5
-port st.lucie,fort lauderdale,1.5
-cape coral,fort lauderdale,2
-pensacola,jacksonville,5
-pensacola,miami,9.5
-pensacola,tampa,6.5
-pensacola,orlando,6.5
-pensacola,st. petersburg,7
-pensacola,tallahassee,3
-pensacola,port st.lucie,8
-pensacola,cape coral,8.5
-pensacola,fort lauderdale,9
-key west,jacksonville,8
-key west,miami,3
-key west,tampa,7
-key west,orlando,6.5
-key west,st. petersburg,6.5
-key west,tallahassee,10
-key west,port st.lucie,5
-key west,cape coral,5
-key west,fort lauderdale,3.5
+jacksonville,miami,2
+jacksonville,tampa,1
+jacksonville,orlando,1
+jacksonville,st. petersburg,1
+jacksonville,tallahassee,1
+jacksonville,port st.lucie,1
+jacksonville,cape coral,2
+jacksonville,fort lauderdale,2
+miami,tampa,2
+miami,orlando,1
+miami,st. petersburg,2
+miami,tallahassee,3
+miami,port st.lucie,1
+miami,cape coral,1
+miami,fort lauderdale,1
+tampa,orlando,1
+tampa,st. petersburg,1
+tampa,tallahassee,2
+tampa,port st.lucie,1
+tampa,cape coral,1
+tampa,fort lauderdale,1
+orlando,st. petersburg,1
+orlando,tallahassee,2
+orlando,port st.lucie,1
+orlando,cape coral,1
+orlando,fort lauderdale,1
+st. petersburg,tallahassee,2
+st. petersburg,port st.lucie,1
+st. petersburg,cape coral,1
+st. petersburg,fort lauderdale,1
+tallahassee,port st.lucie,2
+tallahassee,cape coral,2
+tallahassee,fort lauderdale,2
+port st.lucie,cape coral,1
+port st.lucie,fort lauderdale,1
+cape coral,fort lauderdale,1
+pensacola,jacksonville,2
+pensacola,miami,3
+pensacola,tampa,2
+pensacola,orlando,2
+pensacola,st. petersburg,3
+pensacola,tallahassee,1
+pensacola,port st.lucie,3
+pensacola,cape coral,3
+pensacola,fort lauderdale,3
+key west,jacksonville,3
+key west,miami,1
+key west,tampa,3
+key west,orlando,2
+key west,st. petersburg,2
+key west,tallahassee,3
+key west,port st.lucie,2
+key west,cape coral,2
+key west,fort lauderdale,1

@@ -10,14 +10,14 @@ cities = {}
 driving_file = "driving_time.txt" # from google maps
 driving_times = collections.defaultdict(dict)
 
-time_steps_per_day = 4
-min_resource_per_person = 5 # min resources each person needs each day (every 4 time steps)
-max_resource_per_person = 10 # max resources someone would take - people will take between min and max amt
-prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that person will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
-travel_resource_per_hour = 1 # resources used each hour of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
-max_resource_per_truck = 100 # max resources able to fit in a truck to transport from one place to the next
-max_people_in_car = 6 # max amt of people that fit in one car - people will travel in groups between 1 and 6, maybe more likely to travel in groups of 2 - 4 (couples/families)
-prob_car_pooling = [.1, .22, .23, .23, .16, .06] # prob_car_pooling[i] = probability that a car will hold i + 1 people in it (ex: 10% chance a person would travel alone)
+hrs_per_time_step = 3
+time_steps_per_day = 24 / hrs_per_time_step
+num_ppl_per_group = 30000 # max num of ppl traveling together
+min_resource_per_group = 1 # min resources each person needs each day
+max_resource_per_group = 3 # max resources a group would take
+prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
+travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
+max_resource_per_truck = 30 # max resources able to fit in a truck to transport from one place to the next
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
 fl_min_lat = 24.3959
@@ -86,14 +86,21 @@ def read_population_data():
 # assigns number of resources and trucks for each city
 def generate_resource_data():
     print("Generating Resource Data")
+    total_resources = 0
+    total_trucks = 0
     for city, data in cities.items():
         pop = data['num_ppl']
-        ideal_resources = pop * (min_resource_per_person + 1) * avg_hurricane_length # everyone is able to have 1 more than min resource for whole hurricane
+        ideal_resources = (pop/num_ppl_per_group) * (min_resource_per_group + 1) * avg_hurricane_length # everyone is able to have 1 more than min resource for whole hurricane
         num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 0.75)) # num trucks random between 75% and 125% of ideal
         data['num_resources'] = num_resources
         data['num_trucks'] = num_trucks
+        total_resources += num_resources
+        total_trucks += num_trucks
+    print(cities)
+    print(total_resources)
+    print(total_trucks)
 
 # driving_times is a dict {<city>:<dict of data>}
 # each city contains dict {<other city>:<float>, ...}
@@ -101,9 +108,9 @@ def read_driving_data():
     print("Reading Driving Data")
     with open(driving_file, 'r') as f:
         for line in f:
-            (city1, city2, hours) = line.split(',')
-            driving_times[city1][city2] = float(hours)
-            driving_times[city2][city1] = float(hours)
+            (city1, city2, time_steps) = line.split(',')
+            driving_times[city1][city2] = float(time_steps)
+            driving_times[city2][city1] = float(time_steps)
 
 
 read_grid_data()
