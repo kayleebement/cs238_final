@@ -142,7 +142,7 @@ def get_hurricane():
 # each entry in road is a dict containing destination, resources, time steps left
 # storm contains lat, long, speed, radius
 def generate_actions(s):
-
+    return "hi"
 
 def select_action(s, d):
     if d == num_time_steps:
@@ -158,6 +158,22 @@ def select_action(s, d):
             best_action = a
             best_reward = v
     return (best_action, best_reward)
+
+def generate_state():
+    state = collections.defaultdict(dict)
+    # ADD IN INITIAL STORM VARIABLE NAME
+    # state['storm'] = 
+
+    # Initial city state previously defined
+    state['cities'] = cities
+    
+    # Sample roads entry: {'dest': <destination city>, 'resources': <number of resources travelling>, 'arrival': <timesteps left until arrival}
+    state['roads'] = []
+
+
+def calculate_reward():
+def transition(state, action):
+
 
 read_grid_data()
 avg_hurricane_length = read_hurricane_data()

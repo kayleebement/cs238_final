@@ -12,6 +12,7 @@ driving_times = collections.defaultdict(dict)
 grid_file = "Map_gen/grid_points.txt"
 grid_points = collections.defaultdict(dict)
 
+time_step = 0
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
 num_ppl_per_group = 30000 # max num of ppl traveling together
@@ -26,7 +27,6 @@ fl_min_lat = 24.3959
 fl_max_lat = 31.0035
 fl_min_long = -87.6256
 fl_max_long = -79.8198
-
 
 
 # grid_points is a dict {<x grid point>: <dict of data>}
@@ -47,7 +47,7 @@ def read_grid_data():
 
 # hurricanes is a list of hurricanes
 # each hurricane is a list of time slots (at 6 hour intervals)
-# each time slot is a dict {lat: <float>, long: <float>, speed:<float>}
+# each time slot is a dict {lat: <float>, long: <float>, speed:<float>, radius:<int>}
 def read_hurricane_data():
     print("Reading Hurricane Data")
     status_idx = 3
@@ -56,6 +56,8 @@ def read_hurricane_data():
     wind_idx = 6
     status_hurricane = 'HU'
     total_days = 0
+    min_radius = 333 # in km
+    max_radius = 670 # in km
     with open(hurricane_file, 'r') as f:
         curr_hurricane = None
         curr_status_confirmed = False # confirmed that it reaches "hurricane" status (don't want tropical storms or anything lame)
@@ -80,6 +82,7 @@ def read_hurricane_data():
                 curr_time_step["lat"] = lat
                 curr_time_step["long"] = longit
                 curr_time_step["wind"] = float(curr[wind_idx])
+                curr_time_step["rad"] = random.randint(min_radius, max_radius)
                 if not curr_status_confirmed and curr[status_idx] == status_hurricane: # it's offically a hurricane baby
                     curr_status_confirmed = True
                 if not curr_florida_confirmed:
@@ -129,6 +132,33 @@ def read_driving_data():
             driving_times[city2][city1] = float(time_steps)
 
 
+def get_hurricane():
+    curr_hurricane = random.choice(hurricanes)[:]
+    num_time_steps = len(curr_hurricane) * 2
+    return (curr_hurricane, num_time_steps)
+
+# state is a dict {cities: <dict of cities>, road: <list>, storm: <dict>}
+# each city contains num_ppl, num_resources, num_trucks
+# each entry in road is a dict containing destination, resources, time steps left
+# storm contains lat, long, speed, radius
+def generate_actions(s):
+    return "hi"
+
+def select_action(s, d):
+    if d == num_time_steps:
+        return (None, 0)
+    best_action, best_reward = (None, float("-inf"))
+    actions = generate_actions(s)
+    for a in actions:
+        v = get_reward(s, a)
+        s_prime = get_next_state(s, a)
+        best_next_a, best_next_r = select_action(s_prime, d + 1)
+        v += best_next_r
+        if v > best_reward:
+            best_action = a
+            best_reward = v
+    return (best_action, best_reward)
+
 def generate_state():
     state = collections.defaultdict(dict)
     # ADD IN INITIAL STORM VARIABLE NAME
@@ -145,18 +175,12 @@ def calculate_reward():
 def transition(state, action):
 
 
-
-
-
 read_grid_data()
 avg_hurricane_length = read_hurricane_data()
 read_population_data()
 generate_resource_data()
 read_driving_data()
-
-generate_state()
-
-
+curr_hurricane, num_time_steps = get_hurricane()
 
 ### PROBABLY GOING TO DELETE - IRRELEVANT 
 def calc_angles_speeds():
