@@ -79,35 +79,120 @@ hold on
 plot(cities(1,:),cities(2,:),'k.','MarkerSize',9)
 
 
+%% Plot bounding boxes
+
+% Florida
+fl_1(:,1) = [0.7,3.9];
+fl_1(:,2) = [7.3,8.1];
+plot([fl_1(1,1),fl_1(1,1)],[fl_1(1,2),fl_1(2,2)],'r')
+plot([fl_1(1,1),fl_1(2,1)],[fl_1(1,2),fl_1(1,2)],'r')
+plot([fl_1(1,1),fl_1(2,1)],[fl_1(2,2),fl_1(2,2)],'r')
+plot([fl_1(2,1),fl_1(2,1)],[fl_1(1,2),fl_1(2,2)],'r')
+
+fl_2(:,1) = [3.1,4.6];
+fl_2(:,2) = [4.4,8.1];
+plot([fl_2(1,1),fl_2(1,1)],[fl_2(1,2),fl_2(2,2)],'r')
+plot([fl_2(1,1),fl_2(2,1)],[fl_2(1,2),fl_2(1,2)],'r')
+plot([fl_2(1,1),fl_2(2,1)],[fl_2(2,2),fl_2(2,2)],'r')
+plot([fl_2(2,1),fl_2(2,1)],[fl_2(1,2),fl_2(2,2)],'r')
+
+% Cuba
+cu(:,1) = [2.3,7.4];
+cu(:,2) = [1.7,3.6];
+plot([cu(1,1),cu(1,1)],[cu(1,2),cu(2,2)],'r')
+plot([cu(1,1),cu(2,1)],[cu(1,2),cu(1,2)],'r')
+plot([cu(1,1),cu(2,1)],[cu(2,2),cu(2,2)],'r')
+plot([cu(2,1),cu(2,1)],[cu(1,2),cu(2,2)],'r')
+
+% Haiti/DR
+dr(:,1) = [7.8,10.3];
+dr(:,2) = [0.6,1.8];
+plot([dr(1,1),dr(1,1)],[dr(1,2),dr(2,2)],'r')
+plot([dr(1,1),dr(2,1)],[dr(1,2),dr(1,2)],'r')
+plot([dr(1,1),dr(2,1)],[dr(2,2),dr(2,2)],'r')
+plot([dr(2,1),dr(2,1)],[dr(1,2),dr(2,2)],'r')
+
+% PR
+pr(:,1) = [11.0,11.8];
+pr(:,2) = [0.7,1.1];
+plot([pr(1,1),pr(1,1)],[pr(1,2),pr(2,2)],'r')
+plot([pr(1,1),pr(2,1)],[pr(1,2),pr(1,2)],'r')
+plot([pr(1,1),pr(2,1)],[pr(2,2),pr(2,2)],'r')
+plot([pr(2,1),pr(2,1)],[pr(1,2),pr(2,2)],'r')
+
+
 %% Write output
-
+% 
 file_ID = fopen('Hurricane.txt','w+');
-
-% Write size of grid (multiply point size by 10 so everthing is integers)
+% 
+% % Write size of grid (multiply point size by 10 so everthing is integers)
 grid_size = max(points'*10);
 fprintf(file_ID,'Grid size\nX: %i\nY: %i\n\n',grid_size(1),grid_size(2));
 
-% Write Florida points
-fprintf(file_ID,'Florida:\n');
+% Write grid points
+fprintf(file_ID,'(x,y,water/land,city)\n');
+fprintf(file_ID,'0: Water, 1: Land (Not Florida), 2: Land (Florida)\n');
+fprintf(file_ID,'0: No city, >0 city ID\n\n');
+
 for i = 1:length(points)
-    if points(2,i) > 4 && points(1,i) < 5
-        fprintf(file_ID,'(%i,%i)\n',points(1,i)*10,points(2,i)*10);
+    fprintf(file_ID,'(%i,%i,',points(1,i)*10,points(2,i)*10);
+    % Check if florida
+    if (points(1,i) > fl_1(1,1) && points(1,i) < fl_1(2,1) && ...
+            points(2,i) > fl_1(1,2) && points(2,i) < fl_1(2,2))
+        fprintf(file_ID,'2,');
+    elseif (points(1,i) > fl_2(1,1) && points(1,i) < fl_2(2,1) && ...
+            points(2,i) > fl_2(1,2) && points(2,i) < fl_2(2,2))
+        fprintf(file_ID,'2,');
+    elseif (points(1,i) > cu(1,1) && points(1,i) < cu(2,1) && ...
+            points(2,i) > cu(1,2) && points(2,i) < cu(2,2))
+        fprintf(file_ID,'1,');
+    elseif (points(1,i) > dr(1,1) && points(1,i) < dr(2,1) && ...
+            points(2,i) > dr(1,2) && points(2,i) < dr(2,2))
+        fprintf(file_ID,'1,');
+    elseif (points(1,i) > pr(1,1) && points(1,i) < pr(2,1) && ...
+            points(2,i) > pr(1,2) && points(2,i) < pr(2,2))
+        fprintf(file_ID,'1,');
+    else
+        fprintf(file_ID,'0,');
+    end
+    
+    % Check if city
+    city_flag = 0;
+    for j = 1:length(cities)
+        if all(points(:,i) == cities(:,j))
+            fprintf(file_ID,'%i)\n',j);
+            city_flag = 1;
+        end
+    end
+    if ~city_flag
+        fprintf(file_ID,'0)\n');
     end
 end
 
-% Write other land
-fprintf(file_ID,'\nNon-Floridian Land:\n');
-for i = 1:length(points)
-    if points(2,i) < 4 || points(1,i) > 5
-        fprintf(file_ID,'(%i,%i)\n',points(1,i)*10,points(2,i)*10);
-    end
-end
-
-% Write cities
-fprintf(file_ID,'\nCities:\n');
-for i = 1:length(cities)
-    fprintf(file_ID,'(%i,%i)\n',cities(1,i)*10,cities(2,i)*10);
-end
 
 
+% 
+% % Write Florida points
+% fprintf(file_ID,'Florida:\n');
+% for i = 1:length(points)
+%     if points(2,i) > 4 && points(1,i) < 5
+%         fprintf(file_ID,'(%i,%i)\n',points(1,i)*10,points(2,i)*10);
+%     end
+% end
+% 
+% % Write other land
+% fprintf(file_ID,'\nNon-Floridian Land:\n');
+% for i = 1:length(points)
+%     if points(2,i) < 4 || points(1,i) > 5
+%         fprintf(file_ID,'(%i,%i)\n',points(1,i)*10,points(2,i)*10);
+%     end
+% end
+% 
+% % Write cities
+% fprintf(file_ID,'\nCities:\n');
+% for i = 1:length(cities)
+%     fprintf(file_ID,'(%i,%i)\n',cities(1,i)*10,cities(2,i)*10);
+% end
+% 
+% 
 
