@@ -28,6 +28,7 @@ fl_min_long = -87.6256
 fl_max_long = -79.8198
 
 
+
 # grid_points is a dict {<x grid point>: <dict of data>}
 # each y grid point is a dict {land: <int>, city <string>}
 def read_grid_data():
@@ -128,11 +129,34 @@ def read_driving_data():
             driving_times[city2][city1] = float(time_steps)
 
 
+def generate_state():
+    state = collections.defaultdict(dict)
+    # ADD IN INITIAL STORM VARIABLE NAME
+    # state['storm'] = 
+
+    # Initial city state previously defined
+    state['cities'] = cities
+    
+    # Sample roads entry: {'dest': <destination city>, 'resources': <number of resources travelling>, 'arrival': <timesteps left until arrival}
+    state['roads'] = []
+
+
+def calculate_reward():
+def transition(state, action):
+
+
+
+
+
 read_grid_data()
 avg_hurricane_length = read_hurricane_data()
 read_population_data()
 generate_resource_data()
 read_driving_data()
+
+generate_state()
+
+
 
 ### PROBABLY GOING TO DELETE - IRRELEVANT 
 def calc_angles_speeds():
