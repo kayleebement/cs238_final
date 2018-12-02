@@ -1,0 +1,11 @@
+jacksonville,907269
+miami,479009
+tampa,394507
+orlando,290553
+st. petersburg,269645
+tallahassee,193078
+port st. lucie,196890
+cape coral,189648
+fort lauderdale,180914 
+key west,25208
+pensacola,52590
