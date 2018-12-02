@@ -138,56 +138,63 @@ plot([pr(2,1),pr(2,1)],[pr(1,2),pr(2,2)],'r')
 
 
 %% Write output
-% 
+%
 file_ID = fopen('grid_points.txt','w+');
-% 
+%
 % % Write size of grid (multiply point size by 10 so everthing is integers)
 grid_size = max(points'*10);
 fprintf(file_ID,'Grid size\nX: %i\nY: %i\n\n',grid_size(1),grid_size(2));
 
 % Write grid points
-fprintf(file_ID,'(x,y,water/land,city)\n');
+fprintf(file_ID,'x,y,water/land,city\n');
 fprintf(file_ID,'0: Water, 1: Land (Not Florida), 2: Land (Florida)\n');
 fprintf(file_ID,'0: No city, >0 city ID\n\n');
 
-for i = 1:length(points)
-    fprintf(file_ID,'(%i,%i,',points(1,i)*10,points(2,i)*10);
-    % Check if florida
-    if (points(1,i) > fl_1(1,1) && points(1,i) < fl_1(2,1) && ...
-            points(2,i) > fl_1(1,2) && points(2,i) < fl_1(2,2))
-        fprintf(file_ID,'2,');
-    elseif (points(1,i) > fl_2(1,1) && points(1,i) < fl_2(2,1) && ...
-            points(2,i) > fl_2(1,2) && points(2,i) < fl_2(2,2))
-        fprintf(file_ID,'2,');
-    elseif (points(1,i) > cu(1,1) && points(1,i) < cu(2,1) && ...
-            points(2,i) > cu(1,2) && points(2,i) < cu(2,2))
-        fprintf(file_ID,'1,');
-    elseif (points(1,i) > dr(1,1) && points(1,i) < dr(2,1) && ...
-            points(2,i) > dr(1,2) && points(2,i) < dr(2,2))
-        fprintf(file_ID,'1,');
-    elseif (points(1,i) > pr(1,1) && points(1,i) < pr(2,1) && ...
-            points(2,i) > pr(1,2) && points(2,i) < pr(2,2))
-        fprintf(file_ID,'1,');
-    else
-        fprintf(file_ID,'0,');
-    end
-    
-    % Check if city
-    city_flag = 0;
-    for j = 1:length(cities)
-        if all(points(:,i) == cities(:,j))
-            fprintf(file_ID,'%s)\n',city_names{j});
-            city_flag = 1;
+for i = 1:grid_size(1)
+    for k = 1:grid_size(2)
+        point = [i;k]/10;
+        % for i = 1:length(points)
+        %     if i > 1 && any(all(point==points(:,1:i-1)))
+        %         continue
+        %     end
+        fprintf(file_ID,'%i,%i,',point(1)*10,point(2)*10);
+        % Check if florida
+        if (point(1) >= fl_1(1,1) && point(1) <= fl_1(2,1) && ...
+                point(2) >= fl_1(1,2) && point(2) <= fl_1(2,2))
+            fprintf(file_ID,'2,');
+        elseif (point(1) >= fl_2(1,1) && point(1) <= fl_2(2,1) && ...
+                point(2) >= fl_2(1,2) && point(2) <= fl_2(2,2))
+            fprintf(file_ID,'2,');
+        elseif (point(1) >= cu(1,1) && point(1) <= cu(2,1) && ...
+                point(2) >= cu(1,2) && point(2) <= cu(2,2))
+            fprintf(file_ID,'1,');
+        elseif (point(1) >= dr(1,1) && point(1) <= dr(2,1) && ...
+                point(2) >= dr(1,2) && point(2) <= dr(2,2))
+            fprintf(file_ID,'1,');
+        elseif (point(1) >= pr(1,1) && point(1) <= pr(2,1) && ...
+                point(2) >= pr(1,2) && point(2) <= pr(2,2))
+            fprintf(file_ID,'1,');
+        else
+            fprintf(file_ID,'0,');
         end
-    end
-    if ~city_flag
-        fprintf(file_ID,'none)\n');
+        
+        % Check if city
+        city_flag = 0;
+        for j = 1:length(cities)
+            if all(point == cities(:,j))
+                fprintf(file_ID,'%s\n',city_names{j});
+                city_flag = 1;
+            end
+        end
+        if ~city_flag
+            fprintf(file_ID,'none\n');
+        end
     end
 end
 
 fclose(file_ID);
 
-% 
+%
 % % Write Florida points
 % fprintf(file_ID,'Florida:\n');
 % for i = 1:length(points)
@@ -195,7 +202,7 @@ fclose(file_ID);
 %         fprintf(file_ID,'(%i,%i)\n',points(1,i)*10,points(2,i)*10);
 %     end
 % end
-% 
+%
 % % Write other land
 % fprintf(file_ID,'\nNon-Floridian Land:\n');
 % for i = 1:length(points)
@@ -203,12 +210,12 @@ fclose(file_ID);
 %         fprintf(file_ID,'(%i,%i)\n',points(1,i)*10,points(2,i)*10);
 %     end
 % end
-% 
+%
 % % Write cities
 % fprintf(file_ID,'\nCities:\n');
 % for i = 1:length(cities)
 %     fprintf(file_ID,'(%i,%i)\n',cities(1,i)*10,cities(2,i)*10);
 % end
-% 
-% 
+%
+%
 

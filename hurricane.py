@@ -10,7 +10,7 @@ cities = {}
 driving_file = "driving_time.txt" # from google maps
 driving_times = collections.defaultdict(dict)
 grid_file = "Map_gen/grid_points.txt"
-grid_points = {}
+grid_points = collections.defaultdict(dict)
 
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
@@ -32,11 +32,16 @@ fl_max_long = -79.8198
 # each y grid point is a dict {land: <int>, city <string>}
 def read_grid_data():
     print("to do: read grid data")
+    line_count = 0
     with open(grid_file, 'r') as f:
         for line in f:
-            if line > 9
+            line_count = line_count + 1
+            if line_count > 8:
                 (grid_x, grid_y, land_id, city) = line.split(',')
+                city = city.strip()
                 grid_points[grid_x][grid_y] = {'land': int(land_id), 'city': city}
+                if city != 'none':
+                    print(grid_points[grid_x][grid_y])
 
 
 # hurricanes is a list of hurricanes
