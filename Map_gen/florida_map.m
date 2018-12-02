@@ -139,7 +139,7 @@ plot([pr(2,1),pr(2,1)],[pr(1,2),pr(2,2)],'r')
 
 %% Write output
 % 
-file_ID = fopen('Hurricane.txt','w+');
+file_ID = fopen('grid_points.txt','w+');
 % 
 % % Write size of grid (multiply point size by 10 so everthing is integers)
 grid_size = max(points'*10);
@@ -185,7 +185,7 @@ for i = 1:length(points)
     end
 end
 
-
+fclose(file_ID);
 
 % 
 % % Write Florida points
