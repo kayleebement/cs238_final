@@ -30,50 +30,66 @@ axis equal
 %% Add cities
 
 cities = zeros(2,10);
+city_names = cell(1,10);
 % Jacksonville
 cities(1,1) = 3.7;
 cities(2,1) = 7.8;
+city_names{1} = 'jacksonville';
 % Miami
 cities(1,2) = 4.6;
 cities(2,2) = 5.3;
+city_names{2} = 'miami';
 % Tampa
 cities(1,3) = 3.3;
 cities(2,3) = 6.3;
+city_names{3} = 'tampa';
 % Orlando
 cities(1,4) = 3.8;
 cities(2,4) = 6.8;
+city_names{4} = 'orlando';
 % St. Petersburg
 cities(1,5) = 3.2;
 cities(2,5) = 6.0;
+city_names{5} = 'st. petersburg';
 % % Hialeah
 cities(1,6) = 4.5;
 cities(2,6) = 5.4;
+city_names{6} = 'haileah';
 % Tallahassee
 cities(1,7) = 2.3;
 cities(2,7) = 7.8;
+city_names{7} = 'tallahassee';
 % Port St. Lucie
 cities(1,8) = 4.4;
 cities(2,8) = 6.0;
+city_names{8} = 'port st.lucie';
 % Cape Coral
 cities(1,9) = 3.5;
 cities(2,9) = 5.7;
+city_names{9} = 'cape coral';
 % Fort Lauderdale
 cities(1,10) = 4.6;
 cities(2,10) = 5.5;
+city_names{10} = 'fort lauderdale';
 % Pensacol
 cities(1,11) = 0.9;
 cities(2,11) = 7.8;
+city_names{11} = 'pensacola';
 % Key Largo
 cities(1,12) = 4.4;
 cities(2,12) = 4.7;
+city_names{12} = 'key largo';
 % Key West
 cities(1,13) = 3.5;
 cities(2,13) = 4.4;
+city_names{13} = 'key west';
 
 % Remove cities: Hialeah
 cities(:,6) = [];
+city_names(6) = [];
 rm_count = 1;
 cities(:,12-rm_count) = [];
+city_names(12-rm_count) = [];
 
 hold on
 plot(cities(1,:),cities(2,:),'k.','MarkerSize',9)
@@ -160,12 +176,12 @@ for i = 1:length(points)
     city_flag = 0;
     for j = 1:length(cities)
         if all(points(:,i) == cities(:,j))
-            fprintf(file_ID,'%i)\n',j);
+            fprintf(file_ID,'%s)\n',city_names{j});
             city_flag = 1;
         end
     end
     if ~city_flag
-        fprintf(file_ID,'0)\n');
+        fprintf(file_ID,'none)\n');
     end
 end
 
