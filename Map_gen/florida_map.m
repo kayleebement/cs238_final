@@ -62,7 +62,7 @@ city_names{7} = 'tallahassee';
 % Port St. Lucie
 cities(1,8) = 4.4;
 cities(2,8) = 6.0;
-city_names{8} = 'port st.lucie';
+city_names{8} = 'port st. lucie';
 % Cape Coral
 cities(1,9) = 3.5;
 cities(2,9) = 5.7;

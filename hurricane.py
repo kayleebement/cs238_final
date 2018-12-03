@@ -1,5 +1,5 @@
 import geopy.distance # pip install geopy
-from math import atan2, sin, cos
+from math import atan2, sin, cos, sqrt, pow
 import random
 import collections
 import itertools
@@ -28,6 +28,13 @@ fl_min_lat = 24.3959
 fl_max_lat = 31.0035
 fl_min_long = -87.6256
 fl_max_long = -79.8198
+grid_min_lat = 18.0111
+grid_max_lat = fl_max_lat
+grid_min_long = -88.7844
+grid_max_long = -65.6445
+grid_max_x = 0;
+grid_max_y = 0;
+grid_spacing = 0;   # Spacing between grid lines in km
 
 
 # grid_points is a dict {<x grid point>: <dict of data>}
@@ -38,12 +45,29 @@ def read_grid_data():
     with open(grid_file, 'r') as f:
         for line in f:
             line_count = line_count + 1
-            if line_count > 8:
+            if line_count == 2:
+                global grid_max_x
+                grid_max_x = int(line[3:len(line)])
+            elif line_count == 3:
+                global grid_max_y
+                grid_max_y = int(line[3:len(line)])
+            elif line_count > 8:
                 (grid_x, grid_y, land_id, city) = line.split(',')
                 city = city.strip()
                 grid_points[grid_x][grid_y] = {'land': int(land_id), 'city': city}
                 if city != 'none':
+                    cities[city]['grid_x'] = int(grid_x)
+                    cities[city]['grid_y'] = int(grid_y)
                     print(grid_points[grid_x][grid_y])
+    global grid_spacing
+    grid_spacing = (grid_max_long - grid_min_long) / grid_max_x * 111 * cos((grid_min_lat + grid_max_lat)/2) # 111 km btw long lines at equator
+
+
+# Converts a latitude/longitude to the nearest grid point
+def lat_long_to_grid(latitude,longitude):
+    grid_x = (longitude - grid_min_long) / (grid_max_long - grid_min_long) * (grid_max_x - 1) + 1
+    grid_y = (latitude - grid_min_lat) / (grid_max_lat - grid_min_lat) * (grid_max_y - 1) + 1
+    return (round(grid_x), round(grid_y))
 
 
 # hurricanes is a list of hurricanes
@@ -133,6 +157,41 @@ def read_driving_data():
             driving_times[city2][city1] = float(time_steps)
 
 
+
+# Calculates rewards given a state-action pair
+def calculate_reward(s,time_idx):
+    # Initialize reward
+    reward = 0
+
+    # Pull storm data
+    storm_x, storm_y = lat_long_to_grid(s['storm'][time_idx]['lat'],s['storm'][time_idx]['long'])
+    rad = s['storm'][time_idx]['rad'] / grid_spacing
+
+    # Loop through all cities to accumulate reward
+    for c in s['cities']:
+        n_resources = s['cities'][c]['num_resources']
+        n_people = s['cities'][c]['num_ppl']
+
+        # Check if city is in storm
+        city_x = s['cities'][c]['grid_x']
+        city_y = s['cities'][c]['grid_y']
+        print(city_x,city_y,storm_x,storm_y)
+        dist = sqrt( pow(city_x - storm_x,2) + pow(city_y - storm_y,2))
+        if dist > rad:
+            min_r = min_resource_per_group
+        else:
+            min_r = min_resource_per_group_storm
+
+        print(n_resources,n_people)
+
+        if n_resources/(n_people/num_ppl_per_group) < min_r:
+            reward = reward - n_people/num_ppl_per_group/n_resources*min_r*10;
+            print('Not enough resources in',c,'\nCurrent reward:',reward,'\n')
+
+
+    return random.randint(1, 10)
+
+
 # state is a dict {cities: <dict of cities>, road: <list>, storm: <dict>}
 # each city contains num_ppl, num_resources, num_trucks
 # each entry in road is a dict containing destination, resources, time steps left
@@ -195,32 +254,30 @@ def select_action(s, d):
             best_reward = v
     return (best_action, best_reward)
 
+
+# Generates initial state to begin simulation
 def generate_state():
     state = collections.defaultdict(dict)
-    # ADD IN INITIAL STORM VARIABLE NAME
+    # Randomly selects hurricane from given data
     state['storm'] = random.choice(hurricanes)[:]
-
     # Initial city state previously defined
     state['cities'] = cities
-    
     # Sample roads entry: {'dest': <destination city>, 'resources': <number of resources travelling>, 'arrival': <timesteps left until arrival}
     state['roads'] = []
 
     return state
 
 
-def calculate_reward(s, a):
-    return random.randint(1, 10)
-
 def transition(state, action):
     return state
 
 
-read_grid_data()
 avg_hurricane_length = read_hurricane_data()
 read_population_data()
 generate_resource_data()
+read_grid_data()
 read_driving_data()
 curr_state = generate_state()
-num_time_steps = len(curr_state['storm']) * 2
-best_action, best_reward = select_action(curr_state, 0)
+r = calculate_reward(curr_state,5)
+# num_time_steps = len(curr_state['storm']) * 2
+# best_action, best_reward = select_action(curr_state, 0)
