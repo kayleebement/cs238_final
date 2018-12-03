@@ -175,21 +175,18 @@ def calculate_reward(s,time_idx):
         # Check if city is in storm
         city_x = s['cities'][c]['grid_x']
         city_y = s['cities'][c]['grid_y']
-        print(city_x,city_y,storm_x,storm_y)
         dist = sqrt( pow(city_x - storm_x,2) + pow(city_y - storm_y,2))
         if dist > rad:
             min_r = min_resource_per_group
         else:
             min_r = min_resource_per_group_storm
 
-        print(n_resources,n_people)
-
+        # If not enough resources in area, there is a negative reward proportional to amount of resources lacking
         if n_resources/(n_people/num_ppl_per_group) < min_r:
             reward = reward - n_people/num_ppl_per_group/n_resources*min_r*10;
             print('Not enough resources in',c,'\nCurrent reward:',reward,'\n')
 
-
-    return random.randint(1, 10)
+    return reward
 
 
 # state is a dict {cities: <dict of cities>, road: <list>, storm: <dict>}
