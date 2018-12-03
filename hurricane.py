@@ -2,6 +2,7 @@ import geopy.distance # pip install geopy
 from math import atan2, sin, cos
 import random
 import collections
+import itertools
 
 hurricane_file = "hurricane_data.txt" # guide to data https://www.nhc.noaa.gov/data/hurdat/hurdat2-format-atlantic.pdf
 hurricanes = []
@@ -12,15 +13,15 @@ driving_times = collections.defaultdict(dict)
 grid_file = "Map_gen/grid_points.txt"
 grid_points = collections.defaultdict(dict)
 
-time_step = 0
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
 num_ppl_per_group = 30000 # max num of ppl traveling together
 min_resource_per_group = 1 # min resources each group needs each time step
-max_resource_per_group = 3 # max resources a group would take each time step
+min_resource_per_group_storm = 2 # if in storm, need 2 resource per group
+max_resource_per_group = 4 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
-max_resource_per_truck = 240 # max resources able to fit in a truck to transport from one place to the next
+max_resource_per_truck = 500 # max resources able to fit in a truck to transport from one place to the next
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
 fl_min_lat = 24.3959
@@ -32,7 +33,7 @@ fl_max_long = -79.8198
 # grid_points is a dict {<x grid point>: <dict of data>}
 # each y grid point is a dict {land: <int>, city <string>}
 def read_grid_data():
-    print("to do: read grid data")
+    print("Reading Grid Data")
     line_count = 0
     with open(grid_file, 'r') as f:
         for line in f:
@@ -132,26 +133,60 @@ def read_driving_data():
             driving_times[city2][city1] = float(time_steps)
 
 
-def get_hurricane():
-    curr_hurricane = random.choice(hurricanes)[:]
-    num_time_steps = len(curr_hurricane) * 2
-    return (curr_hurricane, num_time_steps)
-
 # state is a dict {cities: <dict of cities>, road: <list>, storm: <dict>}
 # each city contains num_ppl, num_resources, num_trucks
 # each entry in road is a dict containing destination, resources, time steps left
 # storm contains lat, long, speed, radius
 def generate_actions(s):
-    return "hi"
+    print("Generating actions...")
+    actions = []
+    cities = s['cities']
+    city_names = cities.keys()
+    for origin, data in cities.items():
+        print("Creating actions for origin", origin)
+        trucks = data['num_trucks']
+        resources = data['num_resources']
+        max_transportable = trucks * max_resource_per_truck
+        curr_city = []
+        curr_city.append({})
+        if resources >= max_transportable:
+            for i in range(trucks):
+                num_resources = max_resource_per_truck * (i + 1)
+                for destination in city_names:
+                    if destination == origin:
+                        continue
+                    curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
+        else:
+            resources_left = resources
+            num_resources = 0
+            for i in range(resources // max_resource_per_truck):
+                if resources_left >= max_resource_per_truck:
+                    num_resources += max_resource_per_truck
+                else:
+                    num_resources += resources_left
+                for destination in city_names:
+                    if destination == origin:
+                        continue
+                    curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
+        actions.append(curr_city[:])
+        print("Length of actions for city", origin, len(curr_city))
+    #all_actions = [[x, y, z] for x in actions[city_names[0]]]
+    print("Generating all actions")
+    all_actions = list(itertools.product(*actions)) # this doesn't finish bc the action space is still way too big......
+    return all_actions
+
+
 
 def select_action(s, d):
+    print("Select Action at Depth:", d)
     if d == num_time_steps:
         return (None, 0)
     best_action, best_reward = (None, float("-inf"))
     actions = generate_actions(s)
+    print("Length of actions list:", len(actions))
     for a in actions:
-        v = get_reward(s, a)
-        s_prime = get_next_state(s, a)
+        v = calculate_reward(s, a)
+        s_prime = transition(s, a)
         best_next_a, best_next_r = select_action(s_prime, d + 1)
         v += best_next_r
         if v > best_reward:
@@ -162,7 +197,7 @@ def select_action(s, d):
 def generate_state():
     state = collections.defaultdict(dict)
     # ADD IN INITIAL STORM VARIABLE NAME
-    # state['storm'] = 
+    state['storm'] = random.choice(hurricanes)[:]
 
     # Initial city state previously defined
     state['cities'] = cities
@@ -170,9 +205,14 @@ def generate_state():
     # Sample roads entry: {'dest': <destination city>, 'resources': <number of resources travelling>, 'arrival': <timesteps left until arrival}
     state['roads'] = []
 
+    return state
+
 
 def calculate_reward():
+    return random.randint(1, 10)
+
 def transition(state, action):
+    return state
 
 
 read_grid_data()
@@ -180,34 +220,6 @@ avg_hurricane_length = read_hurricane_data()
 read_population_data()
 generate_resource_data()
 read_driving_data()
-curr_hurricane, num_time_steps = get_hurricane()
-
-### PROBABLY GOING TO DELETE - IRRELEVANT 
-def calc_angles_speeds():
-    hrs_per_step = 6
-    pi = 3.14
-    max_bearing = None
-    min_bearing = None
-    checking = None
-    counts = [0, 0, 0, 0]
-    for hurricane in hurricanes:
-        for t in range(1, len(hurricane)):
-            prev_step = hurricane[t - 1]
-            curr_step = hurricane[t]
-            lat_1 = prev_step['lat']
-            long_1 = prev_step['long']
-            lat_2 = curr_step['lat']
-            long_2 = curr_step['long']
-            # calc speed
-            coords_1 = (lat_1, long_1)
-            coords_2 = (lat_2, long_2)
-            dist = geopy.distance.distance(coords_1, coords_2).km
-            speed = dist/hrs_per_step
-            # calc bearing 
-            long_delta = long_2 - long_1
-            y = sin(long_delta) * cos(lat_2)
-            x = cos(lat_1) * sin(lat_2) - sin(lat_1) * cos(lat_2) * long_delta
-            bearing = atan2(y, x)
-            bearing = bearing * 180 / pi
-            curr_step["speed"] = speed
-            curr_step["bearing"] = bearing
+curr_state = generate_state()
+num_time_steps = len(curr_state['storm']) * 2
+best_action, best_reward = select_action(curr_state, 0)
