@@ -16,9 +16,9 @@ grid_points = collections.defaultdict(dict)
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
 num_ppl_per_group = 30000 # max num of ppl traveling together
-min_resource_per_group = 1 # min resources each group needs each time step
-min_resource_per_group_storm = 2 # if in storm, need 2 resource per group
-max_resource_per_group = 4 # max resources a group would take each time step
+min_resource_per_group = 0.5 # min resources each group needs each time step
+min_resource_per_group_storm = 1 # if in storm, need 2 resource per group
+max_resource_per_group = 1 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
 max_resource_per_truck = 500 # max resources able to fit in a truck to transport from one place to the next
@@ -110,7 +110,7 @@ def generate_resource_data():
     total_trucks = 0
     for city, data in cities.items():
         pop = data['num_ppl']
-        ideal_resources = (pop/num_ppl_per_group) * (max_resource_per_group) * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
+        ideal_resources = (pop/num_ppl_per_group) * max_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
         num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 0.75)) # num trucks random between 75% and 125% of ideal
@@ -185,6 +185,7 @@ def select_action(s, d):
     actions = generate_actions(s)
     print("Length of actions list:", len(actions))
     for a in actions:
+        a = list(filter(lambda x: x != {}, a))
         v = calculate_reward(s, a)
         s_prime = transition(s, a)
         best_next_a, best_next_r = select_action(s_prime, d + 1)
@@ -208,7 +209,7 @@ def generate_state():
     return state
 
 
-def calculate_reward():
+def calculate_reward(s, a):
     return random.randint(1, 10)
 
 def transition(state, action):
