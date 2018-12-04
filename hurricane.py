@@ -162,10 +162,22 @@ def read_driving_data():
 def calculate_reward(s,time_idx):
     # Initialize reward
     reward = 0
+    print(time_idx)
 
-    # Pull storm data
-    storm_x, storm_y = lat_long_to_grid(s['storm'][time_idx]['lat'],s['storm'][time_idx]['long'])
-    rad = s['storm'][time_idx]['rad'] / grid_spacing
+    # Pull storm data and map from 6 hr to 3 hr (average if time is not a 6 hr interval)
+    if (time_idx%2) != 0:
+        time_m = int((time_idx-1)/2)
+        time_p = int((time_idx+1)/2)
+        storm_x_m, storm_y_m = lat_long_to_grid(s['storm'][time_m]['lat'],s['storm'][time_m]['long'])
+        storm_x_p, storm_y_p = lat_long_to_grid(s['storm'][time_p]['lat'],s['storm'][time_p]['long'])
+        rad_m = s['storm'][time_m]['rad'] / grid_spacing
+        rad_p = s['storm'][time_p]['rad'] / grid_spacing
+        storm_x = (storm_x_m + storm_x_p)/2
+        storm_y = (storm_y_m + storm_y_p)/2
+        rad = (rad_m + rad_p)/2
+    else:
+        storm_x, storm_y = lat_long_to_grid(s['storm'][int(time_idx/2)]['lat'],s['storm'][int(time_idx/2)]['long'])        
+        rad = s['storm'][int(time_idx/2)]['rad'] / grid_spacing
 
     # Loop through all cities to accumulate reward
     for c in s['cities']:
@@ -242,7 +254,7 @@ def select_action(s, d):
     print("Length of actions list:", len(actions))
     for a in actions:
         a = list(filter(lambda x: x != {}, a))
-        v = calculate_reward(s, a)
+        v = calculate_reward(s, d)
         s_prime = transition(s, a)
         best_next_a, best_next_r = select_action(s_prime, d + 1)
         v += best_next_r
@@ -266,6 +278,33 @@ def generate_state():
 
 
 def transition(state, action):
+
+    # Take actions and move items from origin to road
+    for a in action:
+        # Pull data
+        origin = action[a]['origin']
+        destination = action[a]['destination']
+        moving = action[a]['resources']
+
+        # Check if moving more resources than available
+        if moving > state['cities'][origin]['resources']:
+            moving = state['cities'][origin]['resources']
+        
+        # Subtract from origin
+        state['cities'][origin]['resources'] = state['cities'][origin]['resources'] - moving
+
+        # Move to road
+        state['roads'].append({'destination':destination, 'resources':moving, 'arrival':travel_time})
+
+    # Decrement items on roads
+    for r in state['roads']:
+        if state['roads'][r]['arrival'] > 0:
+            state['roads'][r]['arrival'] = state['roads'][r]['arrival'] - 1
+        else:
+            # Remove from roads and add to destination
+            state['cities'][destination]['resources'] = state['cities'][destination]['resources'] + state['roads'][r]['resources']
+            state['roads'].remove(r)
+
     return state
 
 
@@ -275,6 +314,6 @@ generate_resource_data()
 read_grid_data()
 read_driving_data()
 curr_state = generate_state()
-r = calculate_reward(curr_state,5)
-# num_time_steps = len(curr_state['storm']) * 2
-# best_action, best_reward = select_action(curr_state, 0)
+num_time_steps = len(curr_state['storm']) * 2 - 1
+print(num_time_steps)
+best_action, best_reward = select_action(curr_state, 0)
