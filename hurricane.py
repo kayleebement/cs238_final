@@ -245,14 +245,18 @@ def generate_actions(s):
 
 
 def select_action(s, d):
-    # print("Select Action at Depth:", d)
+    print("Select Action at Depth:", d)
     # if d == num_time_steps:
     if d == 4:
         return (None, 0)
     best_action, best_reward = (None, float("-inf"))
     actions = generate_actions(s)
     print("Length of actions list:", len(actions))
+    count_a = 0
+    dim_a = len(actions)
     for a in actions:
+        print(count_a,'/',dim_a)
+        count_a = count_a + 1
         a = list(filter(lambda x: x != {}, a))
         v = calculate_reward(s, d)
         s_prime = transition(s, a)
