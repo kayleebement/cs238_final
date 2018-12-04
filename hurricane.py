@@ -162,7 +162,6 @@ def read_driving_data():
 def calculate_reward(s,time_idx):
     # Initialize reward
     reward = 0
-    print(time_idx)
 
     # Pull storm data and map from 6 hr to 3 hr (average if time is not a 6 hr interval)
     if (time_idx%2) != 0:
@@ -196,7 +195,7 @@ def calculate_reward(s,time_idx):
         # If not enough resources in area, there is a negative reward proportional to amount of resources lacking
         if n_resources/(n_people/num_ppl_per_group) < min_r:
             reward = reward - n_people/num_ppl_per_group/n_resources*min_r*10;
-            print('Not enough resources in',c,'\nCurrent reward:',reward,'\n')
+            # print('Not enough resources in',c,'\nCurrent reward:',reward,'\n')
 
     return reward
 
@@ -246,8 +245,9 @@ def generate_actions(s):
 
 
 def select_action(s, d):
-    print("Select Action at Depth:", d)
-    if d == num_time_steps:
+    # print("Select Action at Depth:", d)
+    # if d == num_time_steps:
+    if d == 4:
         return (None, 0)
     best_action, best_reward = (None, float("-inf"))
     actions = generate_actions(s)
@@ -282,28 +282,31 @@ def transition(state, action):
     # Take actions and move items from origin to road
     for a in action:
         # Pull data
-        origin = action[a]['origin']
-        destination = action[a]['destination']
-        moving = action[a]['resources']
+        origin = a['origin']
+        destination = a['destination']
+        moving = a['resources']
 
         # Check if moving more resources than available
-        if moving > state['cities'][origin]['resources']:
-            moving = state['cities'][origin]['resources']
+        if moving > state['cities'][origin]['num_resources']:
+            moving = state['cities'][origin]['num_resources'] - 1
         
         # Subtract from origin
-        state['cities'][origin]['resources'] = state['cities'][origin]['resources'] - moving
+        state['cities'][origin]['num_resources'] = state['cities'][origin]['num_resources'] - moving
 
         # Move to road
+        travel_time = driving_times[origin][destination]
         state['roads'].append({'destination':destination, 'resources':moving, 'arrival':travel_time})
 
     # Decrement items on roads
     for r in state['roads']:
-        if state['roads'][r]['arrival'] > 0:
-            state['roads'][r]['arrival'] = state['roads'][r]['arrival'] - 1
-        else:
+        if r['arrival'] > 0:
+            r['arrival'] = r['arrival'] - 1
+        elif r['arrival'] == 0:
             # Remove from roads and add to destination
-            state['cities'][destination]['resources'] = state['cities'][destination]['resources'] + state['roads'][r]['resources']
-            state['roads'].remove(r)
+            destination = r['destination']
+            state['cities'][destination]['num_resources'] = state['cities'][destination]['num_resources'] + r['resources']
+            r['arrival'] = r['arrival'] - 1
+            # state['roads'].remove(r)
 
     return state
 
