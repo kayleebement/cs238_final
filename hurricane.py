@@ -6,11 +6,11 @@ import itertools
 
 hurricane_file = "hurricane_data.txt" # guide to data https://www.nhc.noaa.gov/data/hurdat/hurdat2-format-atlantic.pdf
 hurricanes = []
+storm_time = []
 population_file = "population.txt" # from google
 cities = {}
 driving_file = "driving_time.txt" # from google maps
 driving_times = collections.defaultdict(dict)
-closest_cities = collections.defaultdict(list)
 grid_file = "Map_gen/grid_points.txt"
 grid_points = collections.defaultdict(dict)
 
@@ -154,11 +154,9 @@ def read_driving_data():
     with open(driving_file, 'r') as f:
         for line in f:
             (city1, city2, time_steps) = line.split(',')
-            time = int(time_steps)
-            if time == 1:
-                closest_cities[city1].append(city2)
             driving_times[city1][city2] = float(time_steps)
             driving_times[city2][city1] = float(time_steps)
+
 
 
 # Calculates rewards given a state-action pair
@@ -170,16 +168,16 @@ def calculate_reward(s,time_idx):
     if (time_idx%2) != 0:
         time_m = int((time_idx-1)/2)
         time_p = int((time_idx+1)/2)
-        storm_x_m, storm_y_m = lat_long_to_grid(s['storm'][time_m]['lat'],s['storm'][time_m]['long'])
-        storm_x_p, storm_y_p = lat_long_to_grid(s['storm'][time_p]['lat'],s['storm'][time_p]['long'])
-        rad_m = s['storm'][time_m]['rad'] / grid_spacing
-        rad_p = s['storm'][time_p]['rad'] / grid_spacing
+        storm_x_m, storm_y_m = lat_long_to_grid(storm_time[time_m]['lat'],storm_time[time_m]['long'])
+        storm_x_p, storm_y_p = lat_long_to_grid(storm_time[time_p]['lat'],storm_time[time_p]['long'])
+        rad_m = storm_time[time_m]['rad'] / grid_spacing
+        rad_p = storm_time[time_p]['rad'] / grid_spacing
         storm_x = (storm_x_m + storm_x_p)/2
         storm_y = (storm_y_m + storm_y_p)/2
         rad = (rad_m + rad_p)/2
     else:
-        storm_x, storm_y = lat_long_to_grid(s['storm'][int(time_idx/2)]['lat'],s['storm'][int(time_idx/2)]['long'])        
-        rad = s['storm'][int(time_idx/2)]['rad'] / grid_spacing
+        storm_x, storm_y = lat_long_to_grid(storm_time[int(time_idx/2)]['lat'],storm_time[int(time_idx/2)]['long'])        
+        rad = storm_time[int(time_idx/2)]['rad'] / grid_spacing
 
     # Loop through all cities to accumulate reward
     for c in s['cities']:
@@ -211,6 +209,7 @@ def generate_actions(s):
     print("Generating actions...")
     actions = []
     cities = s['cities']
+    city_names = cities.keys()
     for origin, data in cities.items():
         print("Creating actions for origin", origin)
         trucks = data['num_trucks']
@@ -221,7 +220,7 @@ def generate_actions(s):
         if resources >= max_transportable:
             for i in range(trucks):
                 num_resources = max_resource_per_truck * (i + 1)
-                for destination in closest_cities[origin]:
+                for destination in city_names:
                     if destination == origin:
                         continue
                     curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
@@ -233,7 +232,7 @@ def generate_actions(s):
                     num_resources += max_resource_per_truck
                 else:
                     num_resources += resources_left
-                for destination in closest_cities[origin]:
+                for destination in city_names:
                     if destination == origin:
                         continue
                     curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
@@ -261,7 +260,7 @@ def select_action(s, d):
         count_a = count_a + 1
         a = list(filter(lambda x: x != {}, a))
         v = calculate_reward(s, d)
-        s_prime = transition(s, a)
+        s_prime = transition(s, a, 0, d)
         best_next_a, best_next_r = select_action(s_prime, d + 1)
         v += best_next_r
         if v > best_reward:
@@ -274,7 +273,9 @@ def select_action(s, d):
 def generate_state():
     state = collections.defaultdict(dict)
     # Randomly selects hurricane from given data
-    state['storm'] = random.choice(hurricanes)[:]
+    global storm_time
+    storm_time = random.choice(hurricanes)[:]
+    state['storm'] = storm_time[1]
     # Initial city state previously defined
     state['cities'] = cities
     # Sample roads entry: {'dest': <destination city>, 'resources': <number of resources travelling>, 'arrival': <timesteps left until arrival}
@@ -283,7 +284,28 @@ def generate_state():
     return state
 
 
-def transition(state, action):
+def transition(state, action, truth_flag, time_idx):
+
+    # Increment storm
+    if (time_idx%2) != 0:
+        time_m = int((time_idx-1)/2)
+        time_p = int((time_idx+1)/2)
+        storm_x_m, storm_y_m = lat_long_to_grid(storm_time[time_m]['lat'],storm_time[time_m]['long'])
+        storm_x_p, storm_y_p = lat_long_to_grid(storm_time[time_p]['lat'],storm_time[time_p]['long'])
+        rad_m = storm_time[time_m]['rad'] / grid_spacing
+        rad_p = storm_time[time_p]['rad'] / grid_spacing
+        storm_x = (storm_x_m + storm_x_p)/2
+        storm_y = (storm_y_m + storm_y_p)/2
+        rad = (rad_m + rad_p)/2
+    else:
+        storm_x, storm_y = lat_long_to_grid(storm_time[int(time_idx/2)]['lat'],storm_time[int(time_idx/2)]['long'])        
+        rad = storm_time[int(time_idx/2)]['rad'] / grid_spacing
+
+    # Add in uncertainty
+    if not truth_flag:
+        storm_x = storm_x
+        storm_y = storm_y
+        rad = rad
 
     # Take actions and move items from origin to road
     for a in action:
@@ -306,13 +328,13 @@ def transition(state, action):
     # Decrement items on roads
     removal = []
     for r in state['roads']:
-        if r['arrival'] > 0:
+        if r['arrival'] > 1:
             r['arrival'] = r['arrival'] - 1
-        elif r['arrival'] == 0:
+        elif r['arrival'] == 1:
             # Remove from roads and add to destination
             destination = r['destination']
             state['cities'][destination]['num_resources'] = state['cities'][destination]['num_resources'] + r['resources']
-            r['arrival'] = r['arrival'] - 1
+            # r['arrival'] = r['arrival'] - 1
             # state['roads'].remove(r)
             removal.append(r)
 
@@ -328,6 +350,6 @@ generate_resource_data()
 read_grid_data()
 read_driving_data()
 curr_state = generate_state()
-num_time_steps = len(curr_state['storm']) * 2 - 1
+num_time_steps = len(storm_time) * 2 - 1
 print(num_time_steps)
 best_action, best_reward = select_action(curr_state, 0)
