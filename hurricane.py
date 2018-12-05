@@ -245,12 +245,12 @@ def generate_actions(s):
 
 
 
-def select_action(s, d):
+def select_action(s, d, t):
     print("Select Action at Depth:", d)
     # if d == num_time_steps:
-    if d == 4:
-        return (None, 0)
-    best_action, best_reward = (None, float("-inf"))
+    if t + d + 1 == num_time_steps or d == 1:
+        return ([], s, calculate_reward(s, d))
+    best_action, best_s_prime, best_reward = (None, None, float("-inf"))
     actions = generate_actions(s)
     print("Length of actions list:", len(actions))
     count_a = 0
@@ -261,12 +261,14 @@ def select_action(s, d):
         a = list(filter(lambda x: x != {}, a))
         v = calculate_reward(s, d)
         s_prime = transition(s, a, 0, d)
-        best_next_a, best_next_r = select_action(s_prime, d + 1)
+        best_next_a, best_next_s_prime, best_next_r = select_action(s_prime, d + 1, t + 1)
         v += best_next_r
         if v > best_reward:
             best_action = a
+            best_s_prime = s_prime
             best_reward = v
-    return (best_action, best_reward)
+
+    return (best_action, best_s_prime, best_reward)
 
 
 # Generates initial state to begin simulation
@@ -349,7 +351,17 @@ read_population_data()
 generate_resource_data()
 read_grid_data()
 read_driving_data()
+
+actions = []
+reward = 0
 curr_state = generate_state()
 num_time_steps = len(storm_time) * 2 - 1
-print(num_time_steps)
-best_action, best_reward = select_action(curr_state, 0)
+
+for time_step in range(num_time_steps):
+    best_action, best_s_prime, best_reward = select_action(curr_state, 0, time_step)
+    actions.append(best_action)
+    reward += best_reward
+    curr_state = best_s_prime.copy()
+
+print("Actions:", actions)
+print("Reward: ", reward)
