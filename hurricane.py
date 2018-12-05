@@ -10,6 +10,7 @@ population_file = "population.txt" # from google
 cities = {}
 driving_file = "driving_time.txt" # from google maps
 driving_times = collections.defaultdict(dict)
+closest_cities = collections.defaultdict(list)
 grid_file = "Map_gen/grid_points.txt"
 grid_points = collections.defaultdict(dict)
 
@@ -21,7 +22,7 @@ min_resource_per_group_storm = 1 # if in storm, need 2 resource per group
 max_resource_per_group = 1 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
-max_resource_per_truck = 2000 # max resources able to fit in a truck to transport from one place to the next
+max_resource_per_truck = 500 # max resources able to fit in a truck to transport from one place to the next
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
 fl_min_lat = 24.3959
@@ -153,9 +154,11 @@ def read_driving_data():
     with open(driving_file, 'r') as f:
         for line in f:
             (city1, city2, time_steps) = line.split(',')
+            time = int(time_steps)
+            if time == 1:
+                closest_cities[city1].append(city2)
             driving_times[city1][city2] = float(time_steps)
             driving_times[city2][city1] = float(time_steps)
-
 
 
 # Calculates rewards given a state-action pair
@@ -208,7 +211,6 @@ def generate_actions(s):
     print("Generating actions...")
     actions = []
     cities = s['cities']
-    city_names = cities.keys()
     for origin, data in cities.items():
         print("Creating actions for origin", origin)
         trucks = data['num_trucks']
@@ -219,7 +221,7 @@ def generate_actions(s):
         if resources >= max_transportable:
             for i in range(trucks):
                 num_resources = max_resource_per_truck * (i + 1)
-                for destination in city_names:
+                for destination in closest_cities[origin]:
                     if destination == origin:
                         continue
                     curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
@@ -231,7 +233,7 @@ def generate_actions(s):
                     num_resources += max_resource_per_truck
                 else:
                     num_resources += resources_left
-                for destination in city_names:
+                for destination in closest_cities[origin]:
                     if destination == origin:
                         continue
                     curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
