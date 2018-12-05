@@ -315,10 +315,6 @@ def transition(state, action, truth_flag, time_idx):
         origin = a['origin']
         destination = a['destination']
         moving = a['resources']
-
-        # Check if moving more resources than available
-        if moving > state['cities'][origin]['num_resources']:
-            moving = state['cities'][origin]['num_resources'] - 1
         
         # Subtract from origin
         state['cities'][origin]['num_resources'] = state['cities'][origin]['num_resources'] - moving
