@@ -3,36 +3,36 @@ jacksonville,tampa,1
 jacksonville,orlando,1
 jacksonville,st. petersburg,1
 jacksonville,tallahassee,1
-jacksonville,port st.lucie,1
+jacksonville,port st. lucie,1
 jacksonville,cape coral,2
 jacksonville,fort lauderdale,2
 miami,tampa,2
 miami,orlando,1
 miami,st. petersburg,2
 miami,tallahassee,3
-miami,port st.lucie,1
+miami,port st. lucie,1
 miami,cape coral,1
 miami,fort lauderdale,1
 tampa,orlando,1
 tampa,st. petersburg,1
 tampa,tallahassee,2
-tampa,port st.lucie,1
+tampa,port st. lucie,1
 tampa,cape coral,1
 tampa,fort lauderdale,1
 orlando,st. petersburg,1
 orlando,tallahassee,2
-orlando,port st.lucie,1
+orlando,port st. lucie,1
 orlando,cape coral,1
 orlando,fort lauderdale,1
 st. petersburg,tallahassee,2
-st. petersburg,port st.lucie,1
+st. petersburg,port st. lucie,1
 st. petersburg,cape coral,1
 st. petersburg,fort lauderdale,1
-tallahassee,port st.lucie,2
+tallahassee,port st. lucie,2
 tallahassee,cape coral,2
 tallahassee,fort lauderdale,2
-port st.lucie,cape coral,1
-port st.lucie,fort lauderdale,1
+port st. lucie,cape coral,1
+port st. lucie,fort lauderdale,1
 cape coral,fort lauderdale,1
 pensacola,jacksonville,2
 pensacola,miami,3
@@ -40,7 +40,7 @@ pensacola,tampa,2
 pensacola,orlando,2
 pensacola,st. petersburg,3
 pensacola,tallahassee,1
-pensacola,port st.lucie,3
+pensacola,port st. lucie,3
 pensacola,cape coral,3
 pensacola,fort lauderdale,3
 key west,jacksonville,3
@@ -49,6 +49,6 @@ key west,tampa,3
 key west,orlando,2
 key west,st. petersburg,2
 key west,tallahassee,3
-key west,port st.lucie,2
+key west,port st. lucie,2
 key west,cape coral,2
 key west,fort lauderdale,1
