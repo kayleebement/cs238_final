@@ -21,7 +21,7 @@ min_resource_per_group_storm = 1 # if in storm, need 2 resource per group
 max_resource_per_group = 1 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
-max_resource_per_truck = 500 # max resources able to fit in a truck to transport from one place to the next
+max_resource_per_truck = 2000 # max resources able to fit in a truck to transport from one place to the next
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
 fl_min_lat = 24.3959
@@ -302,6 +302,7 @@ def transition(state, action):
         state['roads'].append({'destination':destination, 'resources':moving, 'arrival':travel_time})
 
     # Decrement items on roads
+    removal = []
     for r in state['roads']:
         if r['arrival'] > 0:
             r['arrival'] = r['arrival'] - 1
@@ -311,6 +312,10 @@ def transition(state, action):
             state['cities'][destination]['num_resources'] = state['cities'][destination]['num_resources'] + r['resources']
             r['arrival'] = r['arrival'] - 1
             # state['roads'].remove(r)
+            removal.append(r)
+
+    for r in removal:
+    	state['roads'].remove(r)
 
     return state
 
