@@ -3,6 +3,7 @@ from math import atan2, sin, cos, sqrt, pow
 import random
 import collections
 import itertools
+import copy
 
 hurricane_file = "hurricane_data.txt" # guide to data https://www.nhc.noaa.gov/data/hurdat/hurdat2-format-atlantic.pdf
 hurricanes = []
@@ -11,6 +12,7 @@ population_file = "population.txt" # from google
 cities = {}
 driving_file = "driving_time.txt" # from google maps
 driving_times = collections.defaultdict(dict)
+closest_cities = collections.defaultdict(list)
 grid_file = "Map_gen/grid_points.txt"
 grid_points = collections.defaultdict(dict)
 
@@ -22,7 +24,7 @@ min_resource_per_group_storm = 1 # if in storm, need 2 resource per group
 max_resource_per_group = 1 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
-max_resource_per_truck = 500 # max resources able to fit in a truck to transport from one place to the next
+max_resource_per_truck = 250 # max resources able to fit in a truck to transport from one place to the next
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
 fl_min_lat = 24.3959
@@ -135,7 +137,7 @@ def generate_resource_data():
     total_trucks = 0
     for city, data in cities.items():
         pop = data['num_ppl']
-        ideal_resources = (pop/num_ppl_per_group) * max_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
+        ideal_resources = (pop/num_ppl_per_group) * min_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
         num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 0.75)) # num trucks random between 75% and 125% of ideal
@@ -154,9 +156,12 @@ def read_driving_data():
     with open(driving_file, 'r') as f:
         for line in f:
             (city1, city2, time_steps) = line.split(',')
-            driving_times[city1][city2] = float(time_steps)
-            driving_times[city2][city1] = float(time_steps)
-
+            time = int(time_steps)
+            driving_times[city1][city2] = time
+            driving_times[city2][city1] = time
+            if time == 1:
+                closest_cities[city1].append(city2)
+                closest_cities[city2].append(city1)
 
 
 # Calculates rewards given a state-action pair
@@ -206,12 +211,12 @@ def calculate_reward(s,time_idx):
 # each entry in road is a dict containing destination, resources, time steps left
 # storm contains lat, long, speed, radius
 def generate_actions(s):
-    print("Generating actions...")
+    # print("Generating actions...")
     actions = []
     cities = s['cities']
     city_names = cities.keys()
     for origin, data in cities.items():
-        print("Creating actions for origin", origin)
+        # print("Creating actions for origin", origin)
         trucks = data['num_trucks']
         resources = data['num_resources']
         max_transportable = trucks * max_resource_per_truck
@@ -220,9 +225,7 @@ def generate_actions(s):
         if resources >= max_transportable:
             for i in range(trucks):
                 num_resources = max_resource_per_truck * (i + 1)
-                for destination in city_names:
-                    if destination == origin:
-                        continue
+                for destination in closest_cities[origin]:
                     curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
         else:
             resources_left = resources
@@ -232,31 +235,27 @@ def generate_actions(s):
                     num_resources += max_resource_per_truck
                 else:
                     num_resources += resources_left
-                for destination in city_names:
-                    if destination == origin:
-                        continue
+                for destination in closest_cities[origin]:
                     curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
         actions.append(curr_city[:])
         print("Length of actions for city", origin, len(curr_city))
     #all_actions = [[x, y, z] for x in actions[city_names[0]]]
-    print("Generating all actions")
+    # print("Generating all actions")
     all_actions = list(itertools.product(*actions)) # this doesn't finish bc the action space is still way too big......
     return all_actions
 
 
 
 def select_action(s, d, t):
-    print("Select Action at Depth:", d)
     # if d == num_time_steps:
     if t + d + 1 == num_time_steps or d == 1:
         return ([], s, calculate_reward(s, d))
     best_action, best_s_prime, best_reward = (None, None, float("-inf"))
     actions = generate_actions(s)
-    print("Length of actions list:", len(actions))
     count_a = 0
     dim_a = len(actions)
     for a in actions:
-        print(count_a,'/',dim_a)
+        # print(count_a,'/',dim_a)
         count_a = count_a + 1
         a = list(filter(lambda x: x != {}, a))
         v = calculate_reward(s, d)
@@ -287,6 +286,7 @@ def generate_state():
 
 
 def transition(state, action, truth_flag, time_idx):
+    next_state = copy.deepcopy(state)
 
     # Increment storm
     if (time_idx%2) != 0:
@@ -317,29 +317,29 @@ def transition(state, action, truth_flag, time_idx):
         moving = a['resources']
         
         # Subtract from origin
-        state['cities'][origin]['num_resources'] = state['cities'][origin]['num_resources'] - moving
+        next_state['cities'][origin]['num_resources'] = state['cities'][origin]['num_resources'] - moving
 
         # Move to road
         travel_time = driving_times[origin][destination]
-        state['roads'].append({'destination':destination, 'resources':moving, 'arrival':travel_time})
+        next_state['roads'].append({'destination':destination, 'resources':moving, 'arrival':travel_time})
 
     # Decrement items on roads
     removal = []
-    for r in state['roads']:
+    for r in next_state['roads']:
         if r['arrival'] > 1:
             r['arrival'] = r['arrival'] - 1
         elif r['arrival'] == 1:
             # Remove from roads and add to destination
             destination = r['destination']
-            state['cities'][destination]['num_resources'] = state['cities'][destination]['num_resources'] + r['resources']
+            next_state['cities'][destination]['num_resources'] = state['cities'][destination]['num_resources'] + r['resources']
             # r['arrival'] = r['arrival'] - 1
             # state['roads'].remove(r)
             removal.append(r)
 
     for r in removal:
-    	state['roads'].remove(r)
+    	next_state['roads'].remove(r)
 
-    return state
+    return next_state
 
 
 avg_hurricane_length = read_hurricane_data()
@@ -354,6 +354,8 @@ curr_state = generate_state()
 num_time_steps = len(storm_time) * 2 - 1
 
 for time_step in range(num_time_steps):
+    print("Time step: ", time_step)
+    print("State: ", curr_state)
     best_action, best_s_prime, best_reward = select_action(curr_state, 0, time_step)
     actions.append(best_action)
     reward += best_reward
