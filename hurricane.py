@@ -57,11 +57,12 @@ def read_grid_data():
             elif line_count > 8:
                 (grid_x, grid_y, land_id, city) = line.split(',')
                 city = city.strip()
-                grid_points[grid_x][grid_y] = {'land': int(land_id), 'city': city}
+                global grid_points
+                grid_points[int(grid_x)][int(grid_y)] = {'land': int(land_id), 'city': city}
                 if city != 'none':
                     cities[city]['grid_x'] = int(grid_x)
                     cities[city]['grid_y'] = int(grid_y)
-                    print(grid_points[grid_x][grid_y])
+                    print(grid_points[int(grid_x)][int(grid_y)])
     global grid_spacing
     grid_spacing = (grid_max_long - grid_min_long) / grid_max_x * 111 * cos((grid_min_lat + grid_max_lat)/2) # 111 km btw long lines at equator
 
@@ -137,7 +138,8 @@ def generate_resource_data():
     total_trucks = 0
     for city, data in cities.items():
         pop = data['num_ppl']
-        ideal_resources = (pop/num_ppl_per_group) * min_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
+        # ideal_resources = (pop/num_ppl_per_group) * min_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
+        ideal_resources = (pop/num_ppl_per_group) * 3 * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
         num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 0.75)) # num trucks random between 75% and 125% of ideal
@@ -199,8 +201,10 @@ def calculate_reward(s,time_idx):
             min_r = min_resource_per_group_storm
 
         # If not enough resources in area, there is a negative reward proportional to amount of resources lacking
-        if n_resources/(n_people/num_ppl_per_group) < min_r:
-            reward = reward - n_people/num_ppl_per_group/n_resources*min_r*10;
+        if n_resources/(n_people/num_ppl_per_group) < min_r and n_resources > 0:
+            reward = reward - n_people/num_ppl_per_group/n_resources*min_r*(num_time_steps-time_idx)*10;
+        elif n_resources == 0:
+            reward = reward - n_people/num_ppl_per_group*(num_time_steps-time_idx)*10
             # print('Not enough resources in',c,'\nCurrent reward:',reward,'\n')
 
     return reward
@@ -238,7 +242,7 @@ def generate_actions(s):
                 for destination in closest_cities[origin]:
                     curr_city.append({'origin': origin, 'destination': destination, 'resources': num_resources})
         actions.append(curr_city[:])
-        print("Length of actions for city", origin, len(curr_city))
+        # print("Length of actions for city", origin, len(curr_city))
     #all_actions = [[x, y, z] for x in actions[city_names[0]]]
     # print("Generating all actions")
     all_actions = list(itertools.product(*actions)) # this doesn't finish bc the action space is still way too big......
@@ -259,8 +263,8 @@ def select_action(s, d, t):
         count_a = count_a + 1
         a = list(filter(lambda x: x != {}, a))
         v = calculate_reward(s, d)
-        s_prime = transition(s, a, 0, d)
-        best_next_a, best_next_s_prime, best_next_r = select_action(s_prime, d + 1, t + 1)
+        s_prime = transition(s, a, 0, t + d)
+        best_next_a, best_next_s_prime, best_next_r = select_action(s_prime, d + 1, t)
         v += best_next_r
         if v > best_reward:
             best_action = a
@@ -276,7 +280,8 @@ def generate_state():
     # Randomly selects hurricane from given data
     global storm_time
     storm_time = random.choice(hurricanes)[:]
-    state['storm'] = storm_time[1]
+    # storm_time = hurricanes[2]
+    state['storm'] = storm_time[0]
     # Initial city state previously defined
     state['cities'] = cities
     # Sample roads entry: {'dest': <destination city>, 'resources': <number of resources travelling>, 'arrival': <timesteps left until arrival}
@@ -288,26 +293,43 @@ def generate_state():
 def transition(state, action, truth_flag, time_idx):
     next_state = copy.deepcopy(state)
 
+    time_new = time_idx+1
+
     # Increment storm
-    if (time_idx%2) != 0:
-        time_m = int((time_idx-1)/2)
-        time_p = int((time_idx+1)/2)
-        storm_x_m, storm_y_m = lat_long_to_grid(storm_time[time_m]['lat'],storm_time[time_m]['long'])
-        storm_x_p, storm_y_p = lat_long_to_grid(storm_time[time_p]['lat'],storm_time[time_p]['long'])
-        rad_m = storm_time[time_m]['rad'] / grid_spacing
-        rad_p = storm_time[time_p]['rad'] / grid_spacing
+    if (time_new%2) != 0:
+        time_m = int((time_new-1)/2)
+        time_p = int((time_new+1)/2)
+        # storm_x_m, storm_y_m = lat_long_to_grid(storm_time[time_m]['lat'],storm_time[time_m]['long'])
+        # storm_x_p, storm_y_p = lat_long_to_grid(storm_time[time_p]['lat'],storm_time[time_p]['long'])
+        # rad_m = storm_time[time_m]['rad'] / grid_spacing
+        # rad_p = storm_time[time_p]['rad'] / grid_spacing
+        # storm_x = (storm_x_m + storm_x_p)/2
+        # storm_y = (storm_y_m + storm_y_p)/2
+        storm_x_m = storm_time[time_m]['lat']
+        storm_y_m = storm_time[time_m]['long']
+        storm_x_p = storm_time[time_p]['lat']
+        storm_y_p = storm_time[time_p]['long']
+        rad_m = storm_time[time_m]['rad']
+        rad_p = storm_time[time_p]['rad']
         storm_x = (storm_x_m + storm_x_p)/2
         storm_y = (storm_y_m + storm_y_p)/2
         rad = (rad_m + rad_p)/2
     else:
-        storm_x, storm_y = lat_long_to_grid(storm_time[int(time_idx/2)]['lat'],storm_time[int(time_idx/2)]['long'])        
-        rad = storm_time[int(time_idx/2)]['rad'] / grid_spacing
+        # storm_x, storm_y = lat_long_to_grid(storm_time[int(time_new/2)]['lat'],storm_time[int(time_new/2)]['long'])        
+        # rad = storm_time[int(time_new/2)]['rad'] / grid_spacing
+        storm_x = storm_time[int(time_new/2)]['lat']
+        storm_y = storm_time[int(time_new/2)]['long']
+        rad = storm_time[int(time_new/2)]['rad']
 
     # Add in uncertainty
     if not truth_flag:
-        storm_x = storm_x
-        storm_y = storm_y
-        rad = rad
+        next_state['storm']['lat'] = storm_x
+        next_state['storm']['long'] = storm_y
+        next_state['storm']['rad'] = rad
+    else:
+        next_state['storm']['lat'] = storm_x
+        next_state['storm']['long'] = storm_y
+        next_state['storm']['rad'] = rad
 
     # Take actions and move items from origin to road
     for a in action:
@@ -339,7 +361,25 @@ def transition(state, action, truth_flag, time_idx):
     for r in removal:
     	next_state['roads'].remove(r)
 
+    # Reduce resources used by people in cities
+    for c in next_state['cities']:
+        # Check if city is in storm
+        city_x = next_state['cities'][c]['grid_x']
+        city_y = next_state['cities'][c]['grid_y']
+        storm_grid_x, storm_grid_y = lat_long_to_grid(storm_x,storm_y)
+        storm_grid_rad = rad / grid_spacing
+        dist = sqrt( pow(city_x - storm_grid_x,2) + pow(city_y - storm_grid_y,2))
+        if dist > storm_grid_rad:
+            r_used = min_resource_per_group
+        else:
+            r_used = min_resource_per_group_storm
+        next_state['cities'][c]['num_resources'] = next_state['cities'][c]['num_resources'] - round(r_used / num_ppl_per_group * next_state['cities'][c]['num_ppl'])
+        if next_state['cities'][c]['num_resources'] < 0:
+            next_state['cities'][c]['num_resources'] = 0
+
     return next_state
+
+
 
 
 avg_hurricane_length = read_hurricane_data()
@@ -351,13 +391,26 @@ read_driving_data()
 actions = []
 reward = 0
 curr_state = generate_state()
+print("Storm: ", storm_time)
 num_time_steps = len(storm_time) * 2 - 1
 
 for time_step in range(num_time_steps):
     print("Time step: ", time_step)
     print("State: ", curr_state)
+    # print("State: ", curr_state['storm'])
+
+    # Check if storm hit Florida
+    storm_x, storm_y = lat_long_to_grid(curr_state['storm']['lat'],curr_state['storm']['long'])
+    if storm_x > 0 and storm_y > 0 and storm_x < grid_max_x and storm_y < grid_max_y:
+        print("Storm grid points:",storm_x,storm_y,", Land ID:", grid_points[storm_x][storm_y]['land'])
+        if grid_points[storm_x][storm_y]['land'] == 2:
+            print("STORM HAS HIT FLORIDA")
+    else:
+        print("Storm grid points:",storm_x,"/",grid_max_x,",",storm_y,"/",grid_max_y,", Storm is off map")
+
     best_action, best_s_prime, best_reward = select_action(curr_state, 0, time_step)
     actions.append(best_action)
+    print("Action: ", best_action,"\n")
     reward += best_reward
     curr_state = best_s_prime.copy()
 
