@@ -139,7 +139,7 @@ def generate_resource_data():
     for city, data in cities.items():
         pop = data['num_ppl']
         # ideal_resources = (pop/num_ppl_per_group) * min_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
-        ideal_resources = (pop/num_ppl_per_group) * 3 * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
+        ideal_resources = (pop/num_ppl_per_group) * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
         num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 0.75)) # num trucks random between 75% and 125% of ideal
