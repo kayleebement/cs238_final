@@ -1,5 +1,5 @@
 import geopy.distance # pip install geopy
-from math import atan2, sin, cos, sqrt, pow
+from math import atan2, sin, cos, sqrt, pow, ceil
 import random
 import collections
 import itertools
@@ -19,12 +19,15 @@ grid_points = collections.defaultdict(dict)
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
 num_ppl_per_group = 30000 # max num of ppl traveling together
-min_resource_per_group = 0.25 # min resources each group needs each time step
+# min_resource_per_group = 0.25 # min resources each group needs each time step
+# min_resource_per_group_storm = 0.50 # if in storm, need 2 resource per group
+min_resource_per_group = 0 # min resources each group needs each time step
 min_resource_per_group_storm = 0.50 # if in storm, need 2 resource per group
 max_resource_per_group = 0.75 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
 max_resource_per_truck = 250 # max resources able to fit in a truck to transport from one place to the next
+search_depth = 2 # Depth of search for forward search method
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
 fl_min_lat = 24.3959
@@ -153,7 +156,10 @@ def generate_resource_data():
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         print("Ideal trucks", ideal_trucks)
         num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 1.25)) # num trucks random between 75% and 125% of ideal
+        # num_trucks = ideal_trucks # num trucks random between 75% and 125% of ideal
         print("Num trucks: ", num_trucks)
+        if num_trucks == 0:
+            num_trucks = 1
         data['num_resources'] = num_resources
         data['num_trucks'] = num_trucks
         total_resources += num_resources
@@ -210,13 +216,13 @@ def calculate_reward(s,time_idx):
             min_r = min_resource_per_group
         else:
             min_r = min_resource_per_group_storm
-            print("test - I NEEED MORE RESOURCES PLEASE AHHHHH!!!!!!!!!!!!!! -love, " + c)
+            # print("test - I NEEED MORE RESOURCES PLEASE AHHHHH!!!!!!!!!!!!!! -love, " + c)
 
         # If not enough resources in area, there is a negative reward proportional to amount of resources lacking
-        if n_resources/(n_people/num_ppl_per_group) < min_r and n_resources > 0:
+        if n_resources/(n_people/num_ppl_per_group) < min_r*(num_time_steps-time_idx) and n_resources > 0:
             reward = reward - ((n_people/num_ppl_per_group)/n_resources)*min_r*(num_time_steps-time_idx)*10;
         elif n_resources == 0:
-            reward = reward - (n_people/num_ppl_per_group)*(num_time_steps-time_idx)*100
+            reward = reward - (n_people/num_ppl_per_group)*(num_time_steps-time_idx)*1000
             # print('Not enough resources in',c,'\nCurrent reward:',reward,'\n')
 
     return reward
@@ -264,8 +270,8 @@ def generate_actions(s):
 
 def select_action(s, d, t):
     # if d == num_time_steps:
-    if t + d + 1 == num_time_steps or d == 1:
-        return ([], s, calculate_reward(s, d))
+    if t + d + 1 == num_time_steps or d == search_depth:
+        return ([], s, calculate_reward(s, t + d))
     best_action, best_s_prime, best_reward = (None, None, float("-inf"))
     actions = generate_actions(s)
     count_a = 0
@@ -274,7 +280,9 @@ def select_action(s, d, t):
         # print(count_a,'/',dim_a)
         count_a = count_a + 1
         a = list(filter(lambda x: x != {}, a))
-        v = calculate_reward(s, d)
+        v = calculate_reward(s, t + d)
+        if v < -1000:
+            continue
         s_prime = transition(s, a, 0, t + d)
         best_next_a, best_next_s_prime, best_next_r = select_action(s_prime, d + 1, t)
         v += best_next_r
@@ -311,12 +319,6 @@ def transition(state, action, truth_flag, time_idx):
     if (time_new%2) != 0:
         time_m = int((time_new-1)/2)
         time_p = int((time_new+1)/2)
-        # storm_x_m, storm_y_m = lat_long_to_grid(storm_time[time_m]['lat'],storm_time[time_m]['long'])
-        # storm_x_p, storm_y_p = lat_long_to_grid(storm_time[time_p]['lat'],storm_time[time_p]['long'])
-        # rad_m = storm_time[time_m]['rad'] / grid_spacing
-        # rad_p = storm_time[time_p]['rad'] / grid_spacing
-        # storm_x = (storm_x_m + storm_x_p)/2
-        # storm_y = (storm_y_m + storm_y_p)/2
         storm_x_m = storm_time[time_m]['lat']
         storm_y_m = storm_time[time_m]['long']
         storm_x_p = storm_time[time_p]['lat']
@@ -327,8 +329,6 @@ def transition(state, action, truth_flag, time_idx):
         storm_y = (storm_y_m + storm_y_p)/2
         rad = (rad_m + rad_p)/2
     else:
-        # storm_x, storm_y = lat_long_to_grid(storm_time[int(time_new/2)]['lat'],storm_time[int(time_new/2)]['long'])        
-        # rad = storm_time[int(time_new/2)]['rad'] / grid_spacing
         storm_x = storm_time[int(time_new/2)]['lat']
         storm_y = storm_time[int(time_new/2)]['long']
         rad = storm_time[int(time_new/2)]['rad']
@@ -352,6 +352,8 @@ def transition(state, action, truth_flag, time_idx):
         
         # Subtract from origin
         next_state['cities'][origin]['num_resources'] = state['cities'][origin]['num_resources'] - moving
+        num_trucks = ceil(moving/max_resource_per_truck)
+        next_state['cities'][origin]['num_trucks'] = state['cities'][origin]['num_trucks'] - num_trucks
 
         # Move to road
         travel_time = driving_times[origin][destination]
@@ -366,8 +368,8 @@ def transition(state, action, truth_flag, time_idx):
             # Remove from roads and add to destination
             destination = r['destination']
             next_state['cities'][destination]['num_resources'] = state['cities'][destination]['num_resources'] + r['resources']
-            # r['arrival'] = r['arrival'] - 1
-            # state['roads'].remove(r)
+            num_trucks = ceil(r['resources']/max_resource_per_truck)
+            next_state['cities'][destination]['num_trucks'] = state['cities'][destination]['num_trucks'] + num_trucks
             removal.append(r)
 
     for r in removal:
@@ -414,15 +416,25 @@ for time_step in range(num_time_steps):
     # Check if storm hit Florida
     storm_x, storm_y = lat_long_to_grid(curr_state['storm']['lat'],curr_state['storm']['long'])
     if storm_x > 0 and storm_y > 0 and storm_x < grid_max_x and storm_y < grid_max_y:
-        print("Storm grid points:",storm_x,storm_y,", Land ID:", grid_points[storm_x][storm_y]['land'])
+        print("Storm grid points:",storm_x,"/",grid_max_x,",",storm_y,"/",grid_max_y,", Land ID:", grid_points[storm_x][storm_y]['land'])
         if grid_points[storm_x][storm_y]['land'] == 2:
             print("STORM HAS HIT FLORIDA")
+        rad = curr_state['storm']['rad'] / grid_spacing
+        print("Storm Radius:",rad)
+        for c in curr_state['cities']:
+            # Check if city is in storm
+            city_x = curr_state['cities'][c]['grid_x']
+            city_y = curr_state['cities'][c]['grid_y']
+            dist = sqrt( pow(city_x - storm_x,2) + pow(city_y - storm_y,2))
+            if dist < rad:
+                print(c,"is in the storm!")
     else:
         print("Storm grid points:",storm_x,"/",grid_max_x,",",storm_y,"/",grid_max_y,", Storm is off map")
 
     best_action, best_s_prime, best_reward = select_action(curr_state, 0, time_step)
     actions.append(best_action)
-    print("Action: ", best_action,"\n")
+    print("Action: ", best_action)
+    print("Reward: ", best_reward,"\n")
     reward += best_reward
     curr_state = best_s_prime.copy()
 
