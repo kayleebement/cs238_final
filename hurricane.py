@@ -19,9 +19,9 @@ grid_points = collections.defaultdict(dict)
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
 num_ppl_per_group = 30000 # max num of ppl traveling together
-min_resource_per_group = 0.5 # min resources each group needs each time step
-min_resource_per_group_storm = 1 # if in storm, need 2 resource per group
-max_resource_per_group = 1 # max resources a group would take each time step
+min_resource_per_group = 0.25 # min resources each group needs each time step
+min_resource_per_group_storm = 0.50 # if in storm, need 2 resource per group
+max_resource_per_group = 0.75 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
 max_resource_per_truck = 250 # max resources able to fit in a truck to transport from one place to the next
@@ -85,6 +85,7 @@ def read_hurricane_data():
     wind_idx = 6
     status_hurricane = 'HU'
     total_days = 0
+    total_hurricanes = 0
     min_radius = 333 # in km
     max_radius = 670 # in km
     with open(hurricane_file, 'r') as f:
@@ -98,6 +99,7 @@ def read_hurricane_data():
                 if curr_hurricane and curr_status_confirmed and curr_florida_confirmed:
                     hurricanes.append(curr_hurricane[:])
                     total_days += len(curr_hurricane) / 4
+                    total_hurricanes += 1
                 curr_hurricane = []
                 curr_status_confirmed = False
                 curr_florida_confirmed = False
@@ -118,7 +120,7 @@ def read_hurricane_data():
                     if lat >= fl_min_lat and lat <= fl_max_lat and longit >= fl_min_long and longit <= fl_max_long:
                         curr_florida_confirmed = True
                 curr_hurricane.append(curr_time_step.copy())
-    avg_hurricane_length = int(total_days / 205)
+    avg_hurricane_length = int(total_days / total_hurricanes)
     return avg_hurricane_length
     
 
@@ -138,11 +140,20 @@ def generate_resource_data():
     total_trucks = 0
     for city, data in cities.items():
         pop = data['num_ppl']
+        print(city)
         # ideal_resources = (pop/num_ppl_per_group) * min_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
-        ideal_resources = (pop/num_ppl_per_group) * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
+        num_groups = (pop/num_ppl_per_group)
+        num_resources_pre_storm = (avg_hurricane_length / 2) * time_steps_per_day * min_resource_per_group
+        num_resources_storm = (avg_hurricane_length / 2) * time_steps_per_day * min_resource_per_group_storm
+        num_resources_both = num_resources_pre_storm + num_resources_storm
+        ideal_resources =  num_groups * num_resources_both # everyone is able to have max resource for whole hurricane
+        print("Ideal resources: ", ideal_resources)
         num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
+        print("Num resources: ", num_resources)
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
-        num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 0.75)) # num trucks random between 75% and 125% of ideal
+        print("Ideal trucks", ideal_trucks)
+        num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 1.25)) # num trucks random between 75% and 125% of ideal
+        print("Num trucks: ", num_trucks)
         data['num_resources'] = num_resources
         data['num_trucks'] = num_trucks
         total_resources += num_resources
@@ -199,12 +210,13 @@ def calculate_reward(s,time_idx):
             min_r = min_resource_per_group
         else:
             min_r = min_resource_per_group_storm
+            print("test - I NEEED MORE RESOURCES PLEASE AHHHHH!!!!!!!!!!!!!! -love, " + c)
 
         # If not enough resources in area, there is a negative reward proportional to amount of resources lacking
         if n_resources/(n_people/num_ppl_per_group) < min_r and n_resources > 0:
-            reward = reward - n_people/num_ppl_per_group/n_resources*min_r*(num_time_steps-time_idx)*10;
+            reward = reward - ((n_people/num_ppl_per_group)/n_resources)*min_r*(num_time_steps-time_idx)*10;
         elif n_resources == 0:
-            reward = reward - n_people/num_ppl_per_group*(num_time_steps-time_idx)*10
+            reward = reward - (n_people/num_ppl_per_group)*(num_time_steps-time_idx)*100
             # print('Not enough resources in',c,'\nCurrent reward:',reward,'\n')
 
     return reward
@@ -279,8 +291,8 @@ def generate_state():
     state = collections.defaultdict(dict)
     # Randomly selects hurricane from given data
     global storm_time
-    storm_time = random.choice(hurricanes)[:]
-    # storm_time = hurricanes[2]
+    #storm_time = random.choice(hurricanes)[:]
+    storm_time = hurricanes[2]
     state['storm'] = storm_time[0]
     # Initial city state previously defined
     state['cities'] = cities
