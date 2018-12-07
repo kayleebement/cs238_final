@@ -299,8 +299,8 @@ def generate_state():
     state = collections.defaultdict(dict)
     # Randomly selects hurricane from given data
     global storm_time
-    #storm_time = random.choice(hurricanes)[:]
-    storm_time = hurricanes[2]
+    storm_time = random.choice(hurricanes)[:]
+    # storm_time = hurricanes[2]
     state['storm'] = storm_time[0]
     # Initial city state previously defined
     state['cities'] = cities
