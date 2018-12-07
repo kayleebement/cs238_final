@@ -5,6 +5,7 @@ import collections
 import itertools
 import copy
 
+file = open("results.txt", "a+")
 hurricane_file = "hurricane_data.txt" # guide to data https://www.nhc.noaa.gov/data/hurdat/hurdat2-format-atlantic.pdf
 hurricanes = []
 storm_time = []
@@ -18,7 +19,7 @@ grid_points = collections.defaultdict(dict)
 
 hrs_per_time_step = 3
 time_steps_per_day = 24 / hrs_per_time_step
-num_ppl_per_group = 30000 # max num of ppl traveling together
+num_ppl_per_group = 25000 # max num of ppl traveling together
 # min_resource_per_group = 0.25 # min resources each group needs each time step
 # min_resource_per_group_storm = 0.50 # if in storm, need 2 resource per group
 min_resource_per_group = 0 # min resources each group needs each time step
@@ -26,7 +27,7 @@ min_resource_per_group_storm = 0.50 # if in storm, need 2 resource per group
 max_resource_per_group = 0.75 # max resources a group would take each time step
 prob_resource_taking = [.166, .166, .166, .166, .166, .166] # prob_resource_taking[i] = probability that group will take i + 5 resources that day (would be interesting if this varies w # resources available - ie at beginning, ppl are greedy and overpreparing, near end ppl take closer to min)
 travel_resource_per_time_step = 1 # resources used each time step of traveling (gas) for simplicity, assume all resources needed between one time step to next are taken from origin city
-max_resource_per_truck = 250 # max resources able to fit in a truck to transport from one place to the next
+max_resource_per_truck = 150 # max resources able to fit in a truck to transport from one place to the next
 search_depth = 2 # Depth of search for forward search method
 
 # following values are from https://gist.github.com/jakebathman/719e8416191ba14bb6e700fc2d5fccc5
@@ -46,7 +47,6 @@ grid_spacing = 0;   # Spacing between grid lines in km
 # grid_points is a dict {<x grid point>: <dict of data>}
 # each y grid point is a dict {land: <int>, city <string>}
 def read_grid_data():
-    print("Reading Grid Data")
     line_count = 0
     with open(grid_file, 'r') as f:
         for line in f:
@@ -65,7 +65,6 @@ def read_grid_data():
                 if city != 'none':
                     cities[city]['grid_x'] = int(grid_x)
                     cities[city]['grid_y'] = int(grid_y)
-                    print(grid_points[int(grid_x)][int(grid_y)])
     global grid_spacing
     grid_spacing = (grid_max_long - grid_min_long) / grid_max_x * 111 * cos((grid_min_lat + grid_max_lat)/2) # 111 km btw long lines at equator
 
@@ -81,32 +80,42 @@ def lat_long_to_grid(latitude,longitude):
 # each hurricane is a list of time slots (at 6 hour intervals)
 # each time slot is a dict {lat: <float>, long: <float>, speed:<float>, radius:<int>}
 def read_hurricane_data():
-    print("Reading Hurricane Data")
     status_idx = 3
     lat_idx = 4
     long_idx = 5
     wind_idx = 6
-    status_hurricane = 'HU'
+    status_hurricane = "HU"
     total_days = 0
     total_hurricanes = 0
     min_radius = 333 # in km
     max_radius = 670 # in km
+    andrew_index = 0
+    charley_index = 0
     with open(hurricane_file, 'r') as f:
-        curr_hurricane = None
-        curr_status_confirmed = False # confirmed that it reaches "hurricane" status (don't want tropical storms or anything lame)
+        curr_hurricane = []
+        # curr_status_confirmed = False # confirmed that it reaches "hurricane" status (don't want tropical storms or anything lame)
         curr_florida_confirmed = False # confirmed that it hits florida
         for line in f:
             curr = line.split(",")
             num_cols = len(curr)
             if num_cols == 4:
-                if curr_hurricane and curr_status_confirmed and curr_florida_confirmed:
+                if len(curr_hurricane) != 0 and curr_florida_confirmed:
                     hurricanes.append(curr_hurricane[:])
                     total_days += len(curr_hurricane) / 4
                     total_hurricanes += 1
+
                 curr_hurricane = []
-                curr_status_confirmed = False
+                # curr_status_confirmed = False
                 curr_florida_confirmed = False
+
+                name = curr[1].strip()
+                if (name == "ANDREW"):
+                    andrew_index = total_hurricanes
+                if (name == "CHARLEY"):
+                    charley_index = total_hurricanes
             else:
+                if curr[status_idx].strip() != status_hurricane: # it's offically a hurricane baby
+                    continue
                 curr = [x.strip() for x in curr]
                 curr_time_step = {}
                 lat = curr[lat_idx]
@@ -117,20 +126,17 @@ def read_hurricane_data():
                 curr_time_step["long"] = longit
                 curr_time_step["wind"] = float(curr[wind_idx])
                 curr_time_step["rad"] = random.randint(min_radius, max_radius)
-                if not curr_status_confirmed and curr[status_idx] == status_hurricane: # it's offically a hurricane baby
-                    curr_status_confirmed = True
                 if not curr_florida_confirmed:
                     if lat >= fl_min_lat and lat <= fl_max_lat and longit >= fl_min_long and longit <= fl_max_long:
                         curr_florida_confirmed = True
                 curr_hurricane.append(curr_time_step.copy())
     avg_hurricane_length = int(total_days / total_hurricanes)
-    return avg_hurricane_length
+    return avg_hurricane_length, andrew_index, charley_index
     
 
 # cities is a dict {<city name>:<dict of data>}
 # each city is a dict {<num_ppl>:<int>, <num_resources>:<int>, <num_trucks>:<int>}
 def read_population_data():
-    print("Reading Population Data")
     with open(population_file, 'r') as f:
         for line in f:
             (city, pop) = line.split(',')
@@ -138,40 +144,52 @@ def read_population_data():
 
 # assigns number of resources and trucks for each city
 def generate_resource_data():
-    print("Generating Resource Data")
+    print("RESOURCE DATA")
+    print("RESOURCE DATA", file=file)
     total_resources = 0
     total_trucks = 0
+    total_ideal_resources = 0
+    total_ideal_trucks = 0
     for city, data in cities.items():
         pop = data['num_ppl']
         print(city)
-        # ideal_resources = (pop/num_ppl_per_group) * min_resource_per_group * avg_hurricane_length * time_steps_per_day # everyone is able to have max resource for whole hurricane
+        print(city, file=file)       
         num_groups = (pop/num_ppl_per_group)
-        num_resources_pre_storm = (avg_hurricane_length / 2) * time_steps_per_day * min_resource_per_group
-        num_resources_storm = (avg_hurricane_length / 2) * time_steps_per_day * min_resource_per_group_storm
-        num_resources_both = num_resources_pre_storm + num_resources_storm
-        ideal_resources =  num_groups * num_resources_both # everyone is able to have max resource for whole hurricane
+        num_resources_needed = (avg_hurricane_length / 2) * time_steps_per_day * min_resource_per_group_storm
+        ideal_resources =  num_groups * num_resources_needed # everyone is able to have max resource for whole hurricane
         print("Ideal resources: ", ideal_resources)
-        num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources * 1.25)) # num resources randomly between 75% and 125% of ideal number
+        print("Ideal resources: ", ideal_resources, file=file)
+        num_resources = random.randint(int(ideal_resources * 0.75), int(ideal_resources)) # num resources randomly between 75% and 125% of ideal number
         print("Num resources: ", num_resources)
+        print("Num resources: ", num_resources, file=file)
         ideal_trucks = num_resources / max_resource_per_truck # all resources able to be moved
         print("Ideal trucks", ideal_trucks)
-        num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks * 1.25)) # num trucks random between 75% and 125% of ideal
+        print("Ideal trucks", ideal_trucks, file=file)
+        num_trucks = random.randint(int(ideal_trucks * 0.75), int(ideal_trucks)) # num trucks random between 75% and 125% of ideal
         # num_trucks = ideal_trucks # num trucks random between 75% and 125% of ideal
         print("Num trucks: ", num_trucks)
-        if num_trucks == 0:
-            num_trucks = 1
+        print("Num trucks: ", num_trucks, file=file)
+        # if num_trucks == 0:
+        #     num_trucks = 1
         data['num_resources'] = num_resources
         data['num_trucks'] = num_trucks
         total_resources += num_resources
         total_trucks += num_trucks
-    print(cities)
-    print(total_resources)
-    print(total_trucks)
+        total_ideal_resources += ideal_resources
+        total_ideal_trucks += ideal_trucks
+    print("Total ideal resources on map: ", total_ideal_resources)
+    print("Total resources on map: ", total_resources)
+    print("Total ideal trucks on map: ", total_ideal_trucks)
+    print("Total trucks on map :", total_trucks)
+    print("Total ideal resources on map: ", total_ideal_resources, file=file)
+    print("Total resources on map: ", total_resources, file=file)
+    print("Total ideal trucks on map: ", total_ideal_trucks, file=file)
+    print("Total trucks on map :", total_trucks, file=file)
+    return total_resources
 
 # driving_times is a dict {<city>:<dict of data>}
 # each city contains dict {<other city>:<float>, ...}
 def read_driving_data():
-    print("Reading Driving Data")
     with open(driving_file, 'r') as f:
         for line in f:
             (city1, city2, time_steps) = line.split(',')
@@ -272,7 +290,7 @@ def select_action(s, d, t):
     # if d == num_time_steps:
     if t + d + 1 == num_time_steps or d == search_depth:
         return ([], s, calculate_reward(s, t + d))
-    best_action, best_s_prime, best_reward = (None, None, float("-inf"))
+    best_action, best_s_prime, best_reward = ([], s, -1000)
     actions = generate_actions(s)
     count_a = 0
     dim_a = len(actions)
@@ -295,12 +313,13 @@ def select_action(s, d, t):
 
 
 # Generates initial state to begin simulation
-def generate_state():
+def generate_state(hurr_idx):
     state = collections.defaultdict(dict)
     # Randomly selects hurricane from given data
     global storm_time
-    storm_time = random.choice(hurricanes)[:]
+    #storm_time = random.choice(hurricanes)[:]
     # storm_time = hurricanes[2]
+    storm_time = hurricanes[hurr_idx]
     state['storm'] = storm_time[0]
     # Initial city state previously defined
     state['cities'] = cities
@@ -351,9 +370,9 @@ def transition(state, action, truth_flag, time_idx):
         moving = a['resources']
         
         # Subtract from origin
-        next_state['cities'][origin]['num_resources'] = state['cities'][origin]['num_resources'] - moving
+        next_state['cities'][origin]['num_resources'] -= moving
         num_trucks = ceil(moving/max_resource_per_truck)
-        next_state['cities'][origin]['num_trucks'] = state['cities'][origin]['num_trucks'] - num_trucks
+        next_state['cities'][origin]['num_trucks'] -= num_trucks
 
         # Move to road
         travel_time = driving_times[origin][destination]
@@ -363,18 +382,20 @@ def transition(state, action, truth_flag, time_idx):
     removal = []
     for r in next_state['roads']:
         if r['arrival'] > 1:
+            print("this shouldn't be happening")
             r['arrival'] = r['arrival'] - 1
         elif r['arrival'] == 1:
             # Remove from roads and add to destination
             destination = r['destination']
-            next_state['cities'][destination]['num_resources'] = state['cities'][destination]['num_resources'] + r['resources']
+            next_state['cities'][destination]['num_resources'] += r['resources']
             num_trucks = ceil(r['resources']/max_resource_per_truck)
-            next_state['cities'][destination]['num_trucks'] = state['cities'][destination]['num_trucks'] + num_trucks
+            next_state['cities'][destination]['num_trucks'] += num_trucks
             removal.append(r)
 
     for r in removal:
     	next_state['roads'].remove(r)
 
+    total_resources_step = 0
     # Reduce resources used by people in cities
     for c in next_state['cities']:
         # Check if city is in storm
@@ -387,40 +408,57 @@ def transition(state, action, truth_flag, time_idx):
             r_used = min_resource_per_group
         else:
             r_used = min_resource_per_group_storm
-        next_state['cities'][c]['num_resources'] = next_state['cities'][c]['num_resources'] - round(r_used / num_ppl_per_group * next_state['cities'][c]['num_ppl'])
+        next_state['cities'][c]['num_resources'] -= round((r_used / num_ppl_per_group) * next_state['cities'][c]['num_ppl'])
         if next_state['cities'][c]['num_resources'] < 0:
             next_state['cities'][c]['num_resources'] = 0
+        total_resources_step += next_state['cities'][c]['num_resources']
+    if total_resources_step > total_resources:
+        print("orig: ", total_resources)
+        print("Total resources now: ", total_resources_step)
+        print("state: ", str(state))
+        print("action: ", str(action))
+        print("next: ", str(next_state))
+        quit()
 
     return next_state
 
 
-
-
-avg_hurricane_length = read_hurricane_data()
+### TO SWITCH BETWEEN HURRICANES, UNCOMMENT THE FILE WRITING AND SET CURR_HURR TO THE INDEX YOU WANT!!!
+print("NEW SIMULATION")
+print("NEW SIMULATION", file=file)
+# print("CHARLEY", file=file)
+print("ANDREW", file=file) 
+avg_hurricane_length, andrew_index, charley_index = read_hurricane_data()
+curr_hurr = andrew_index
 read_population_data()
-generate_resource_data()
+total_resources = generate_resource_data()
 read_grid_data()
 read_driving_data()
 
 actions = []
 reward = 0
-curr_state = generate_state()
+curr_state = generate_state(curr_hurr)
 print("Storm: ", storm_time)
+print("Storm: ", storm_time, file=file)
 num_time_steps = len(storm_time) * 2 - 1
 
 for time_step in range(num_time_steps):
     print("Time step: ", time_step)
     print("State: ", curr_state)
-    # print("State: ", curr_state['storm'])
+    print("Time step: ", time_step, file=file)
+    print("State: ", curr_state, file=file)
 
     # Check if storm hit Florida
     storm_x, storm_y = lat_long_to_grid(curr_state['storm']['lat'],curr_state['storm']['long'])
     if storm_x > 0 and storm_y > 0 and storm_x < grid_max_x and storm_y < grid_max_y:
         print("Storm grid points:",storm_x,"/",grid_max_x,",",storm_y,"/",grid_max_y,", Land ID:", grid_points[storm_x][storm_y]['land'])
+        print("Storm grid points:",storm_x,"/",grid_max_x,",",storm_y,"/",grid_max_y,", Land ID:", grid_points[storm_x][storm_y]['land'], file=file)
         if grid_points[storm_x][storm_y]['land'] == 2:
             print("STORM HAS HIT FLORIDA")
+            print("STORM HAS HIT FLORIDA", file=file)
         rad = curr_state['storm']['rad'] / grid_spacing
         print("Storm Radius:",rad)
+        print("Storm Radius:",rad, file=file)
         for c in curr_state['cities']:
             # Check if city is in storm
             city_x = curr_state['cities'][c]['grid_x']
@@ -428,15 +466,23 @@ for time_step in range(num_time_steps):
             dist = sqrt( pow(city_x - storm_x,2) + pow(city_y - storm_y,2))
             if dist < rad:
                 print(c,"is in the storm!")
+                print(c,"is in the storm!", file=file)
     else:
         print("Storm grid points:",storm_x,"/",grid_max_x,",",storm_y,"/",grid_max_y,", Storm is off map")
+        print("Storm grid points:",storm_x,"/",grid_max_x,",",storm_y,"/",grid_max_y,", Storm is off map", file=file)
 
     best_action, best_s_prime, best_reward = select_action(curr_state, 0, time_step)
     actions.append(best_action)
     print("Action: ", best_action)
     print("Reward: ", best_reward,"\n")
+    print("Action: ", best_action, file=file)
+    print("Reward: ", best_reward,"\n", file=file)
     reward += best_reward
     curr_state = best_s_prime.copy()
 
 print("Actions:", actions)
 print("Reward: ", reward)
+print("\n\n\n\n")
+print("Actions:", actions, file=file)
+print("Reward: ", reward, file=file)
+print("\n\n\n\n", file=file)
